@@ -1,0 +1,444 @@
+{
+ "KOLA": {
+  "ok": true,
+  "tk": "KOLA",
+  "cik": "0000000111",
+  "ex": "NYSE",
+  "sec": "Bottled & Canned Soft Drinks & Carbonated Waters",
+  "n": "Kola Beverage Co",
+  "form": "10-K",
+  "filed": "2026-02-24",
+  "fyEnd": "2025-12-31",
+  "fyLabel": 2025,
+  "y0": 2016,
+  "years": [
+   2016,
+   2017,
+   2018,
+   2019,
+   2020,
+   2021,
+   2022,
+   2023,
+   2024,
+   2025
+  ],
+  "eps": [
+   1.49,
+   0.29,
+   1.5,
+   2.07,
+   1.79,
+   2.25,
+   2.19,
+   2.47,
+   2.46,
+   3.04
+  ],
+  "shares": 4302,
+  "eq": 32169,
+  "sales": 46500,
+  "ca": 31044,
+  "cl": 21281,
+  "ltd": 42819,
+  "div": 16,
+  "divOpen": true,
+  "divNoData": false,
+  "warns": [
+   {
+    "c": "ltdsrc",
+    "l": "info",
+    "t": "החוב ארוך הטווח נלקח מסעיף אחד במאזן (השם המדויק מופיע בפירוט הנתונים). אם בחברה יש חכירות או סעיפי חוב נוספים, ייתכן שחלק מהם לא נכלל."
+   },
+   {
+    "c": "divopen",
+    "l": "info",
+    "t": "הדוחות הדיגיטליים מכסים בערך 15 שנה, ולכן הרצף שמוצג הוא רף תחתון. מבחן 20 השנים מסומן כ״לא נבדק״ עד שתזינו כמה שנים החברה מחלקת בפועל."
+   }
+  ],
+  "tags": {
+   "eps": "us-gaap:EarningsPerShareDiluted",
+   "ca": "us-gaap:AssetsCurrent",
+   "cl": "us-gaap:LiabilitiesCurrent",
+   "eq": "us-gaap:StockholdersEquity",
+   "ltd": "us-gaap:LongTermDebtNoncurrent",
+   "sales": "us-gaap:Revenues",
+   "shares": "dei:EntityCommonStockSharesOutstanding"
+  }
+ },
+ "SPLT": {
+  "ok": true,
+  "tk": "SPLT",
+  "cik": "0000000222",
+  "ex": "Nasdaq",
+  "sec": "",
+  "n": "Splitter Systems Inc",
+  "form": "10-K",
+  "filed": "2026-02-24",
+  "fyEnd": "2025-12-31",
+  "fyLabel": 2025,
+  "y0": 2016,
+  "years": [
+   2016,
+   2017,
+   2018,
+   2019,
+   2020,
+   2021,
+   2022,
+   2023,
+   2024,
+   2025
+  ],
+  "eps": [
+   2.5,
+   2.7,
+   3,
+   3.3,
+   3.6,
+   4,
+   4.5,
+   5.1,
+   5.6,
+   6.2
+  ],
+  "shares": 2000,
+  "eq": 15000,
+  "sales": 21500,
+  "ca": 9000,
+  "cl": 4000,
+  "ltd": 3000,
+  "div": 10,
+  "divOpen": false,
+  "divNoData": false,
+  "warns": [
+   {
+    "c": "split",
+    "l": "info",
+    "t": "זוהה פיצול מניות בעשור האחרון, והרווח למניה בשנים שלפניו הותאם כדי שכל השנים יהיו על אותו בסיס. כדאי לוודא את המספרים מול הדוחות."
+   },
+   {
+    "c": "ltdsrc",
+    "l": "info",
+    "t": "החוב ארוך הטווח נלקח מסעיף אחד במאזן (השם המדויק מופיע בפירוט הנתונים). אם בחברה יש חכירות או סעיפי חוב נוספים, ייתכן שחלק מהם לא נכלל."
+   }
+  ],
+  "tags": {
+   "eps": "us-gaap:EarningsPerShareDiluted",
+   "ca": "us-gaap:AssetsCurrent",
+   "cl": "us-gaap:LiabilitiesCurrent",
+   "eq": "us-gaap:StockholdersEquity",
+   "ltd": "us-gaap:LongTermDebtNoncurrent",
+   "sales": "us-gaap:Revenues",
+   "shares": "dei:EntityCommonStockSharesOutstanding"
+  }
+ },
+ "WEEK": {
+  "ok": true,
+  "tk": "WEEK",
+  "cik": "0000000333",
+  "ex": "NYSE",
+  "sec": "",
+  "n": "Fiftytwo Weeks Retail Corp",
+  "form": "10-K",
+  "filed": "2026-03-12",
+  "fyEnd": "2026-01-31",
+  "fyLabel": 2026,
+  "y0": 2017,
+  "years": [
+   2017,
+   2018,
+   2019,
+   2020,
+   2021,
+   2022,
+   2023,
+   2024,
+   2025,
+   2026
+  ],
+  "eps": [
+   1.2,
+   1.1,
+   1.4,
+   1.6,
+   0.9,
+   1.8,
+   2.1,
+   2.4,
+   2.5,
+   2.9
+  ],
+  "shares": 500,
+  "eq": 7000,
+  "sales": 27000,
+  "ca": 6000,
+  "cl": 5000,
+  "ltd": 2500,
+  "div": 0,
+  "divOpen": false,
+  "divNoData": true,
+  "warns": [
+   {
+    "c": "stitched",
+    "l": "info",
+    "t": "בחלק מהשנים הרווח למניה נלקח מסעיף אחר בדוחות (למשל בסיסי במקום מדולל), כי הסעיף הרגיל חסר באותן שנים."
+   },
+   {
+    "c": "ltdsrc",
+    "l": "info",
+    "t": "החוב ארוך הטווח נלקח מסעיף אחד במאזן (השם המדויק מופיע בפירוט הנתונים). אם בחברה יש חכירות או סעיפי חוב נוספים, ייתכן שחלק מהם לא נכלל."
+   },
+   {
+    "c": "nodiv",
+    "l": "info",
+    "t": "לא נמצא בדוחות נתון על דיבידנד, ולכן הרצף מוצג כאפס. אם החברה מחלקת דיבידנד, אפשר להזין את מספר השנים בעצמכם."
+   }
+  ],
+  "tags": {
+   "eps": "us-gaap:EarningsPerShareDiluted",
+   "ca": "us-gaap:AssetsCurrent",
+   "cl": "us-gaap:LiabilitiesCurrent",
+   "eq": "us-gaap:StockholdersEquity",
+   "ltd": "us-gaap:ConvertibleNotesPayableNoncurrent",
+   "sales": "us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax",
+   "shares": "dei:EntityCommonStockSharesOutstanding"
+  }
+ },
+ "HSOF": {
+  "ok": true,
+  "tk": "HSOF",
+  "cik": "0000000777",
+  "ex": "Nasdaq",
+  "sec": "",
+  "n": "Haifa Software Ltd",
+  "form": "20-F",
+  "filed": "2026-02-24",
+  "fyEnd": "2025-12-31",
+  "fyLabel": 2025,
+  "y0": 2016,
+  "years": [
+   2016,
+   2017,
+   2018,
+   2019,
+   2020,
+   2021,
+   2022,
+   2023,
+   2024,
+   2025
+  ],
+  "eps": [
+   0.9,
+   -0.2,
+   0.4,
+   1,
+   1.2,
+   -0.1,
+   0.5,
+   0.9,
+   1.1,
+   1.4
+  ],
+  "shares": 105.6,
+  "eq": 2000,
+  "sales": null,
+  "ca": 1500,
+  "cl": 700,
+  "ltd": 0,
+  "div": 0,
+  "divOpen": false,
+  "divNoData": true,
+  "warns": [
+   {
+    "c": "foreign",
+    "l": "info",
+    "t": "חברה זרה שמגישה דוח 20-F. ודאו שהמחיר שאתם בודקים הוא למניה רגילה אחת, כי מניות הנסחרות כ-ADR עשויות לייצג מספר אחר של מניות."
+   },
+   {
+    "c": "noltd",
+    "l": "warn",
+    "t": "לא נמצא חוב ארוך טווח במאזן, ולכן הוא הוגדר כאפס. אם לחברה יש אג״ח או הלוואות, בדקו במאזן ועדכנו ידנית בבדיקה צעד אחר צעד."
+   },
+   {
+    "c": "nosales",
+    "l": "warn",
+    "t": "לא נמצא מחזור שנתי בדוחות, ולכן מבחן הגודל לא נבדק."
+   },
+   {
+    "c": "nodiv",
+    "l": "info",
+    "t": "לא נמצא בדוחות נתון על דיבידנד, ולכן הרצף מוצג כאפס. אם החברה מחלקת דיבידנד, אפשר להזין את מספר השנים בעצמכם."
+   }
+  ],
+  "tags": {
+   "eps": "us-gaap:EarningsPerShareDiluted",
+   "ca": "us-gaap:AssetsCurrent",
+   "cl": "us-gaap:LiabilitiesCurrent",
+   "eq": "us-gaap:StockholdersEquity",
+   "ltd": null,
+   "sales": null,
+   "shares": "dei:EntityCommonStockSharesOutstanding"
+  }
+ },
+ "DCM-A": {
+  "ok": true,
+  "tk": "DCM-A",
+  "cik": "0000000888",
+  "ex": "NYSE",
+  "sec": "",
+  "n": "Dual Class Media Inc",
+  "form": "10-K",
+  "filed": "2026-02-24",
+  "fyEnd": "2025-12-31",
+  "fyLabel": 2025,
+  "y0": 2016,
+  "years": [
+   2016,
+   2017,
+   2018,
+   2019,
+   2020,
+   2021,
+   2022,
+   2023,
+   2024,
+   2025
+  ],
+  "eps": [
+   1.2,
+   1.3,
+   1.4,
+   1.5,
+   1.6,
+   1.7,
+   1.8,
+   1.9,
+   2,
+   2.1
+  ],
+  "shares": 1200,
+  "eq": 6000,
+  "sales": 5000,
+  "ca": 3000,
+  "cl": 1500,
+  "ltd": 1000,
+  "div": 0,
+  "divOpen": false,
+  "divNoData": true,
+  "warns": [
+   {
+    "c": "ltdsrc",
+    "l": "info",
+    "t": "החוב ארוך הטווח נלקח מסעיף אחד במאזן (השם המדויק מופיע בפירוט הנתונים). אם בחברה יש חכירות או סעיפי חוב נוספים, ייתכן שחלק מהם לא נכלל."
+   },
+   {
+    "c": "multi",
+    "l": "info",
+    "t": "לחברה כמה סוגי מניות. מספר המניות הוא הסכום של כולן, והמחיר צריך להיות של אחד הסוגים."
+   },
+   {
+    "c": "nodiv",
+    "l": "info",
+    "t": "לא נמצא בדוחות נתון על דיבידנד, ולכן הרצף מוצג כאפס. אם החברה מחלקת דיבידנד, אפשר להזין את מספר השנים בעצמכם."
+   }
+  ],
+  "tags": {
+   "eps": "us-gaap:EarningsPerShareDiluted",
+   "ca": "us-gaap:AssetsCurrent",
+   "cl": "us-gaap:LiabilitiesCurrent",
+   "eq": "us-gaap:StockholdersEquity",
+   "ltd": "us-gaap:LongTermDebtNoncurrent",
+   "sales": "us-gaap:Revenues",
+   "shares": "dei:EntityCommonStockSharesOutstanding"
+  }
+ },
+ "RGDS": {
+  "ok": true,
+  "tk": "RGDS",
+  "cik": "0000000999",
+  "ex": "OTC",
+  "sec": "",
+  "n": "Restated Goods Inc",
+  "form": "10-K",
+  "filed": "2026-02-24",
+  "fyEnd": "2025-12-31",
+  "fyLabel": 2025,
+  "y0": 2016,
+  "years": [
+   2016,
+   2017,
+   2018,
+   2019,
+   2020,
+   2021,
+   2022,
+   2023,
+   2024,
+   2025
+  ],
+  "eps": [
+   1.2,
+   1.3,
+   1.4,
+   1.5,
+   1.6,
+   1.7,
+   1.2,
+   1.9,
+   2,
+   2.2
+  ],
+  "shares": 100,
+  "eq": 5000,
+  "sales": 4000,
+  "ca": 2000,
+  "cl": 1000,
+  "ltd": 500,
+  "div": 0,
+  "divOpen": false,
+  "divNoData": true,
+  "warns": [
+   {
+    "c": "ltdsrc",
+    "l": "info",
+    "t": "החוב ארוך הטווח נלקח מסעיף אחד במאזן (השם המדויק מופיע בפירוט הנתונים). אם בחברה יש חכירות או סעיפי חוב נוספים, ייתכן שחלק מהם לא נכלל."
+   },
+   {
+    "c": "nodiv",
+    "l": "info",
+    "t": "לא נמצא בדוחות נתון על דיבידנד, ולכן הרצף מוצג כאפס. אם החברה מחלקת דיבידנד, אפשר להזין את מספר השנים בעצמכם."
+   }
+  ],
+  "tags": {
+   "eps": "us-gaap:EarningsPerShareDiluted",
+   "ca": "us-gaap:AssetsCurrent",
+   "cl": "us-gaap:LiabilitiesCurrent",
+   "eq": "us-gaap:StockholdersEquity",
+   "ltd": "us-gaap:LongTermDebtNoncurrent",
+   "sales": "us-gaap:Revenues",
+   "shares": "dei:EntityCommonStockSharesOutstanding"
+  }
+ },
+ "FTB": {
+  "ok": false,
+  "code": "nobs",
+  "msg": "במאזן של החברה אין חלוקה לנכסים והתחייבויות שוטפים (כך נראים בדרך כלל בנקים, חברות ביטוח וקרנות), ולכן מבחני גרהם לא מתאימים לה."
+ },
+ "EURO": {
+  "ok": false,
+  "code": "currency",
+  "msg": "החברה מדווחת במטבע שאינו דולר (EUR). כרגע האתר בודק רק חברות שמדווחות בדולרים."
+ },
+ "NEWT": {
+  "ok": false,
+  "code": "history",
+  "msg": "יש בדוחות רק 4 שנות רווח רצופות. כדי להריץ את המבחנים צריך לפחות 6 שנים (למשל חברה שהונפקה לאחרונה לא תתאים)."
+ },
+ "ZZZZ": {
+  "ok": false,
+  "code": "notfound",
+  "msg": "לא מצאנו את הסימול ZZZZ ברשימת החברות של ה-SEC. האתר בודק חברות שנסחרות בארצות הברית. נסו לחפש לפי שם."
+ }
+}

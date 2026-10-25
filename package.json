@@ -1,0 +1,11 @@
+{
+  "name": "masluol-hon",
+  "version": "1.0.0",
+  "private": true,
+  "description": "מסלול ההון: קורס השקעות בעברית + בדיקת מניות לפי גרהם עם נתוני SEC",
+  "type": "module",
+  "scripts": {
+    "test": "node dev/test.mjs"
+  },
+  "engines": { "node": ">=18" }
+}
