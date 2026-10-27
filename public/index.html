@@ -726,6 +726,10 @@ button.spill:hover{filter:brightness(.95)}
 .ac-st.err{color:var(--bad)}
 .ac-st.ok{color:var(--good)}
 
+.ac-g{display:flex;flex-direction:column;align-items:center;gap:14px;margin:14px 0 4px;min-height:44px}
+.ac-or{display:flex;align-items:center;gap:10px;width:100%;color:var(--muted);font-size:.9rem}
+.ac-or:before,.ac-or:after{content:"";flex:1;height:1px;background:var(--line)}
+
 </style>
 </head>
 <body>
@@ -3547,6 +3551,30 @@ function clAuth(action,user,pass){
   },function(){return {ok:false,msg:'אין חיבור לשירות החשבונות. נסו שוב בעוד רגע.'};});
 }
 
+function clGoogle(credential){
+  return apiPost('auth',{action:'google',credential:credential}).then(function(r){
+    if(r&&r.ok&&r.token){
+      CL.token=r.token;CL.user=r.user;CL.synced=false;CL.expired=false;CL.msg='';
+      clStore();clEmit();
+      return clSync().then(function(){return {ok:true};});
+    }
+    return {ok:false,msg:r&&r.msg?r.msg:'לא הצלחנו להתחבר עם גוגל.'};
+  },function(){return {ok:false,msg:'אין חיבור לשירות החשבונות. נסו שוב בעוד רגע.'};});
+}
+var GCFG={id:null,tried:false};
+function loadGoogleBtn(el,onCred){
+  function draw(){
+    try{
+      google.accounts.id.initialize({client_id:GCFG.id,callback:function(r){onCred(r.credential);},ux_mode:'popup'});
+      google.accounts.id.renderButton(el,{theme:'outline',size:'large',text:'continue_with',shape:'pill',locale:'he',width:Math.min(300,Math.max(200,el.parentNode.clientWidth-8))});
+    }catch(e){}
+  }
+  if(window.google&&window.google.accounts&&window.google.accounts.id){draw();return;}
+  var sc=document.getElementById('gsi-js');
+  if(!sc){sc=document.createElement('script');sc.id='gsi-js';sc.src='https://accounts.google.com/gsi/client';sc.async=true;document.head.appendChild(sc);}
+  sc.addEventListener('load',draw);
+}
+
 /* log out: the data stays in the account; this device is cleaned so the next person starts fresh */
 function clLogout(){
   var tok=CL.token;
@@ -3591,6 +3619,20 @@ function AccountView(p){
   var s5=useState(null),err=s5[0],setErr=s5[1];
   var s6=useState(false),askOut=s6[0],setAskOut=s6[1];
   var s7=useState(false),showPw=s7[0],setShowPw=s7[1];
+  var s8=useState(GCFG.id),gid=s8[0],setGid=s8[1];
+  var gref=useRef(null);
+  useEffect(function(){
+    if(!LIVE_API||GCFG.tried){return;}
+    GCFG.tried=true;
+    apiGet('auth',{}).then(function(r){if(r&&r.google){GCFG.id=r.google;setGid(r.google);}},function(){GCFG.tried=false;});
+  },[]);
+  useEffect(function(){
+    if(!gid||c.token||!gref.current){return;}
+    loadGoogleBtn(gref.current,function(cred){
+      setBusy(true);setErr(null);
+      clGoogle(cred).then(function(r){setBusy(false);if(!r.ok){setErr(r.msg);}});
+    });
+  },[gid,c.token,mode]);
 
   function submit(e){
     if(e&&e.preventDefault){e.preventDefault();}
@@ -3651,6 +3693,7 @@ function AccountView(p){
     ${c.expired?html`<div className="callout bad" role="alert" style=${{maxWidth:560}}>ההתחברות פגה. התחברו שוב כדי להמשיך לשמור.</div>`:null}
     <div className="ac-card">
       <${Seg} label="יצירה או התחברות" value=${mode} set=${function(v){setMode(v);setErr(null);}} options=${[['new','חשבון חדש'],['in','יש לי חשבון']]} />
+      ${gid?html`<div className="ac-g"><div ref=${gref}></div><div className="ac-or"><span>או עם שם משתמש</span></div></div>`:null}
       <form onSubmit=${submit} noValidate>
         <label htmlFor="ac-user" className="lbl">שם משתמש</label>
         <input id="ac-user" className="ac-in" type="text" dir="ltr" autoComplete="username" autoCapitalize="none" spellCheck="false" value=${user} onChange=${function(e){setUser(e.target.value);setErr(null);}} disabled=${busy} />
@@ -3664,7 +3707,7 @@ function AccountView(p){
           <button type="submit" className="btn" disabled=${busy}>${busy?'רגע...':mode==='new'?'יצירת חשבון':'התחברות'}</button>
         </div>
       </form>
-      ${mode==='new'?html`<p className="note" style=${{marginTop:14}}><b>חשוב לדעת:</b> אנחנו לא אוספים אימייל, ולכן אי אפשר לשחזר סיסמה שנשכחה. שמרו אותה במקום בטוח. מה שכבר עשיתם במכשיר הזה (שיעורים וחשבון דמו) יעבור לחשבון החדש.</p>`:null}
+      ${mode==='new'?html`<p className="note" style=${{marginTop:14}}><b>חשוב לדעת:</b> אנחנו לא אוספים אימייל, ולכן אי אפשר לשחזר סיסמה שנשכחה. שמרו אותה במקום בטוח. מה שכבר עשיתם במכשיר הזה (שיעורים וחשבון דמו) יעבור לחשבון החדש.${gid?' בכניסה עם גוגל אין סיסמה לשכוח.':''}</p>`:null}
     </div>
   </div></div>`;
 }

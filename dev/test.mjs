@@ -467,6 +467,31 @@ await t('auth: answers are never cached', async () => {
   assert.equal((await D(TOK)).headers.get('cache-control'), 'no-store');
 });
 
+await t('auth: Google sign-in verifies the token with Google, needs the client id, keeps one account per Google user', async () => {
+  let r = await A({ action: 'google', credential: 'x' });
+  assert.equal((await body(r)).code, 'nogoogle');
+  process.env.GOOGLE_CLIENT_ID = 'cid.apps.googleusercontent.com';
+  const prev = globalThis.fetch;
+  const tok = (o) => async () => new Response(JSON.stringify(o), { status: o ? 200 : 400 });
+  const good = { aud: 'cid.apps.googleusercontent.com', sub: '123', iss: 'https://accounts.google.com', email_verified: 'true', exp: String(Math.floor(Date.now() / 1000) + 600), given_name: 'Alon', email: 'a@b.c' };
+  globalThis.fetch = tok(good);
+  const j = await body(await A({ action: 'google', credential: 'tok' }));
+  assert.equal(j.ok, true); assert.equal(j.user, 'Alon');
+  await D(j.token, { prog: { l1: { best: 1, done: true } } });
+  const j2 = await body(await A({ action: 'google', credential: 'tok' }));
+  assert.deepEqual((await body(await D(j2.token))).data.prog, { l1: { best: 1, done: true } });
+  for (const bad of [{ ...good, aud: 'other' }, { ...good, email_verified: 'false' }, { ...good, exp: '1' }, { ...good, iss: 'evil.com' }]) {
+    globalThis.fetch = tok(bad);
+    assert.equal((await A({ action: 'google', credential: 'tok' })).status, 401);
+  }
+  globalThis.fetch = tok(null);
+  assert.equal((await A({ action: 'google', credential: 'tok' })).status, 401);
+  globalThis.fetch = prev;
+  const g = await body(await authFn(new Request('https://site.test/api/auth')));
+  assert.equal(g.google, 'cid.apps.googleusercontent.com');
+  delete process.env.GOOGLE_CLIENT_ID;
+});
+
 globalThis.fetch = realFetch;
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail ? 1 : 0);

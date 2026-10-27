@@ -4,7 +4,22 @@ import { normUser, validUser, validPass, register, check, newSession, endSession
 
 const bad = (code, msg, status = 400) => json({ ok: false, code, msg }, status);
 
+// Verifies a "Sign in with Google" ID token with Google and returns the stable user id + a display name.
+export async function verifyGoogle(credential, clientId) {
+  if (typeof credential !== 'string' || credential.length > 4000) return null;
+  const r = await fetch('https://oauth2.googleapis.com/tokeninfo?id_token=' + encodeURIComponent(credential));
+  if (!r.ok) return null;
+  const t = await r.json();
+  if (t.aud !== clientId || !t.sub) return null;
+  if (!['accounts.google.com', 'https://accounts.google.com'].includes(t.iss)) return null;
+  if (String(t.email_verified) !== 'true') return null;
+  if (Number(t.exp) * 1000 < Date.now()) return null;
+  const name = String(t.given_name || String(t.email || '').split('@')[0] || 'משתמש').slice(0, 30);
+  return { key: 'google:' + t.sub, name };
+}
+
 export default async (req) => {
+  if (req.method === 'GET') return json({ ok: true, google: process.env.GOOGLE_CLIENT_ID || null });
   if (req.method !== 'POST') return bad('method', 'שיטה לא נתמכת.', 405);
   try {
     const text = await req.text();
@@ -19,6 +34,14 @@ export default async (req) => {
     if (b.action === 'logout') {
       await endSession(b.token);
       return json({ ok: true });
+    }
+    if (b.action === 'google') {
+      const cid = process.env.GOOGLE_CLIENT_ID;
+      if (!cid) return bad('nogoogle', 'כניסה עם גוגל עדיין לא הופעלה באתר.', 503);
+      const g = await verifyGoogle(b.credential, cid);
+      if (!g) return bad('badgoogle', 'לא הצלחנו לאמת את החשבון בגוגל. נסו שוב.', 401);
+      const token = await newSession(g.key, g.name);
+      return json({ ok: true, token, user: g.name });
     }
     const name = String(b.user || '').trim();
     if (b.action === 'register') {
