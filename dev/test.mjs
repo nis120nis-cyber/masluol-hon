@@ -316,6 +316,71 @@ await t('quote: bad symbol is rejected', async () => {
   assert.equal(j.ok, false);
 });
 
+// ---- demo accounts in the cloud ----
+process.env.DEMO_MEMORY = '1';
+const demo = (await import('../netlify/functions/demo.mjs')).default;
+const post = (b) => demo(new Request('https://site.test/api/demo', { method: 'POST', body: typeof b === 'string' ? b : JSON.stringify(b) }));
+const acct = () => ({ v: 1, start: 10000, cash: 7000.01, hold: { KO: { n: 'Coca-Cola', sh: 32.3589, cost: 2999.99, px: 92.71, asOf: '26.10.2026' } }, log: [{ t: 1761400000000, side: 'buy', tk: 'KO', n: 'Coca-Cola', sh: 32.3589, px: 92.71, total: 2999.99 }], snap: [{ t: 1761400000000, v: 10000 }, { t: 1761500000000, v: 10002 }], created: 1761400000000, u: 1761500000000, code: 'SHOULD-NOT-BE-STORED', evil: '<script>' });
+let CODE = '';
+await t('demo: create returns a 16-character code and stores only known fields', async () => {
+  const j = await body(await post({ action: 'create', account: acct() }));
+  assert.equal(j.ok, true);
+  assert.match(j.code, /^[0-9A-HJKMNP-TV-Z]{4}(-[0-9A-HJKMNP-TV-Z]{4}){3}$/);
+  CODE = j.code;
+  const g = await body(await demo(req('/api/demo?code=' + CODE)));
+  assert.equal(g.ok, true);
+  assert.equal(g.account.cash, 7000.01);
+  assert.equal(g.account.hold.KO.sh, 32.3589);
+  assert.equal(g.account.evil, undefined);
+  assert.equal(g.account.code, undefined);
+  assert.equal(g.code, CODE);
+});
+await t('demo: codes are random and the code is forgiving about case, dashes and look-alike letters', async () => {
+  const j2 = await body(await post({ action: 'create', account: acct() }));
+  assert.notEqual(j2.code, CODE);
+  const loose = CODE.toLowerCase().replace(/-/g, ' ').replace(/0/g, 'o').replace(/1/g, 'l');
+  const g = await body(await demo(req('/api/demo?code=' + encodeURIComponent(loose))));
+  assert.equal(g.ok, true);
+});
+await t('demo: save updates an existing account and refuses unknown codes', async () => {
+  const a = acct();
+  a.cash = 123.45;
+  const s = await body(await post({ action: 'save', code: CODE, account: a }));
+  assert.equal(s.ok, true);
+  const g = await body(await demo(req('/api/demo?code=' + CODE)));
+  assert.equal(g.account.cash, 123.45);
+  const r = await post({ action: 'save', code: '0000-0000-0000-0000', account: acct() });
+  assert.equal(r.status, 404);
+  assert.equal((await body(r)).code, 'nocode');
+});
+await t('demo: bad code, unknown code, bad shape and oversized bodies are rejected', async () => {
+  let r = await demo(req('/api/demo?code=abc'));
+  assert.equal(r.status, 400);
+  assert.equal((await body(r)).code, 'badcode');
+  r = await demo(req('/api/demo?code=7777-7777-7777-7777'));
+  assert.equal(r.status, 404);
+  r = await post('not json');
+  assert.equal(r.status, 400);
+  const broken = acct();
+  broken.cash = 'a lot';
+  r = await post({ action: 'create', account: broken });
+  assert.equal(r.status, 400);
+  const neg = acct();
+  neg.hold.KO.sh = -5;
+  assert.equal((await post({ action: 'create', account: neg })).status, 400);
+  const many = acct();
+  many.log = new Array(500).fill(many.log[0]);
+  assert.equal((await post({ action: 'create', account: many })).status, 400);
+  r = await post('{"x":"' + 'a'.repeat(90000) + '"}');
+  assert.equal(r.status, 413);
+  r = await demo(new Request('https://site.test/api/demo', { method: 'DELETE' }));
+  assert.equal(r.status, 405);
+});
+await t('demo: answers are never cached', async () => {
+  const r = await demo(req('/api/demo?code=' + CODE));
+  assert.equal(r.headers.get('cache-control'), 'no-store');
+});
+
 globalThis.fetch = realFetch;
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail ? 1 : 0);

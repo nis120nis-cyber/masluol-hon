@@ -51,12 +51,7 @@ export default async (req) => {
     if (!q) return none('noprice', 'לא התקבל מחיר לסימול הזה');
     return json({ ok: true, tk: sym, price: Math.round(q.price * 100) / 100, asOf: q.asOf, source: q.source }, 200, 'public, s-maxage=120, stale-while-revalidate=600', 'symbol');
   } catch (e) {
-    const out = { ok: false, code: 'error', msg: 'שירות המחירים לא ענה' };
-    // ?debug=1 shows why (never the key itself)
-    if (u.searchParams.get('debug') === '1') {
-      out.detail = { provider, keyLength: key.length, error: String(e && e.message), cause: e && e.cause ? String(e.cause.message || e.cause) : null };
-    }
-    return json(out, 200);
+    return none('error', 'שירות המחירים לא ענה');
   }
 };
 

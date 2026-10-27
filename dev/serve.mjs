@@ -7,6 +7,7 @@ import path from 'node:path';
 import { installStub } from './stub.mjs';
 
 installStub();
+process.env.DEMO_MEMORY = '1';
 if (process.env.QUOTE === '1') {
   process.env.QUOTE_PROVIDER = 'finnhub';
   process.env.QUOTE_API_KEY = 'test';
@@ -15,6 +16,7 @@ const fns = {
   company: (await import('../netlify/functions/company.mjs')).default,
   search: (await import('../netlify/functions/search.mjs')).default,
   quote: (await import('../netlify/functions/quote.mjs')).default,
+  demo: (await import('../netlify/functions/demo.mjs')).default,
 };
 const root = path.resolve(process.argv[2] || '.');
 const port = Number(process.argv[3] || 8787);
@@ -35,7 +37,11 @@ http
         return res.end('<h1>Not found</h1>');
       }
       if (process.env.SLOW) await new Promise((r) => setTimeout(r, Number(process.env.SLOW)));
-      const r = await fn(new Request('http://localhost' + req.url));
+      const chunks = [];
+      for await (const c of req) chunks.push(c);
+      const init = { method: req.method };
+      if (req.method !== 'GET' && req.method !== 'HEAD') init.body = Buffer.concat(chunks);
+      const r = await fn(new Request('http://localhost' + req.url, init));
       res.writeHead(r.status, Object.fromEntries(r.headers));
       return res.end(await r.text());
     }
