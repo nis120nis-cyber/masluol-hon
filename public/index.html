@@ -708,6 +708,24 @@ button.spill:hover{filter:brightness(.95)}
 .dm-cl-row code{flex:1 1 auto;min-width:0;font:800 clamp(1.05rem,4.6vw,1.4rem)/1.3 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;letter-spacing:.06em;background:var(--bg);border:1px dashed var(--line);border-radius:12px;padding:10px 14px;user-select:all;overflow-wrap:anywhere;text-align:center}
 .dm-restore{max-width:560px;margin-top:20px}
 
+/* user account */
+.acct-chip{display:inline-flex;align-items:center;gap:7px;border:1.5px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:6px 14px;min-height:40px;font:700 .9rem var(--f-body);white-space:nowrap;max-width:150px;overflow:hidden;text-overflow:ellipsis}
+.acct-chip:hover{border-color:var(--brand);color:var(--brand)}
+.acct-chip.on{background:var(--brand-soft);border-color:transparent;color:var(--brand)}
+.acct-chip .dot{width:8px;height:8px;border-radius:50%;background:var(--good);flex:none}
+.acct-chip[aria-current="page"]{border-color:var(--brand)}
+@media (max-width:640px){.acct-chip{padding:6px 11px;font-size:.85rem;max-width:104px}}
+.ac-card{background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:clamp(18px,4vw,28px);max-width:560px}
+.ac-card .seg{margin-bottom:6px}
+.ac-in{width:100%;font:inherit;font-size:1.05rem;padding:12px 14px;border:1.5px solid var(--line);border-radius:12px;background:var(--surface);color:var(--ink);text-align:right}
+.ac-in:focus{outline:3px solid var(--brand-soft);border-color:var(--brand)}
+.ac-pw{display:flex;gap:10px;align-items:stretch}
+.ac-pw .btn{flex:0 0 auto}
+.ac-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:6px 16px;padding:11px 0;border-bottom:1px solid var(--line)}
+.ac-row span{color:var(--muted)}
+.ac-st.err{color:var(--bad)}
+.ac-st.ok{color:var(--good)}
+
 </style>
 </head>
 <body>
@@ -863,7 +881,7 @@ function niceTicks(lo,hi,n){
 /* storage */
 var KEY='masluol-hon-v4';
 function loadProg(){try{var s=localStorage.getItem(KEY);return s?JSON.parse(s):{};}catch(e){return {};}}
-function saveProg(p){try{localStorage.setItem(KEY,JSON.stringify(p));}catch(e){}}
+function saveProg(p,quiet){try{localStorage.setItem(KEY,JSON.stringify(p));}catch(e){}if(!quiet&&typeof clPushSoon==='function'){clPushSoon();}}
 function readHash(){try{return (window.location.hash||'').replace(/^#/,'');}catch(e){return '';}}
 
 /* measure container width so SVG text stays crisp on phones */
@@ -3333,10 +3351,11 @@ function HeroCheck(p){
    LIVE_API is set by the build: true on the Netlify site, false in the single-file preview. */
 var LIVE_REG={}; /* companies loaded in this visit, by ticker */
 
-function apiGet(name,params){
+function apiGet(name,params,tok){
   var qs=Object.keys(params).map(function(k){return k+'='+encodeURIComponent(params[k]);}).join('&');
   function once(base){
-    return fetch(base+name+'?'+qs,{headers:{Accept:'application/json'}}).then(function(r){
+    var hd={Accept:'application/json'};if(tok){hd.Authorization='Bearer '+tok;}
+    return fetch(base+name+(qs?'?'+qs:''),{headers:hd}).then(function(r){
       return r.text().then(function(t){var j=null;try{j=JSON.parse(t);}catch(e){}return {status:r.status,json:j};});
     });
   }
@@ -3353,9 +3372,10 @@ function apiGet(name,params){
 }
 
 /* same idea for POST (saving a demo account); resolves with the JSON answer even when it is an error answer */
-function apiPost(name,data){
+function apiPost(name,data,tok){
   function once(base){
-    return fetch(base+name,{method:'POST',headers:{'Content-Type':'application/json',Accept:'application/json'},body:JSON.stringify(data)}).then(function(r){
+    var hd={'Content-Type':'application/json',Accept:'application/json'};if(tok){hd.Authorization='Bearer '+tok;}
+    return fetch(base+name,{method:'POST',headers:hd,body:JSON.stringify(data)}).then(function(r){
       return r.text().then(function(t){var j=null;try{j=JSON.parse(t);}catch(e){}return {status:r.status,json:j};});
     });
   }
@@ -3422,6 +3442,231 @@ function loadLive(sym){
 
 function searchLive(q){
   return apiGet('search',{q:q}).then(function(j){return j&&j.ok&&Array.isArray(j.r)?j.r:[];});
+}
+
+/* ===== cloud.js ===== */
+/* ---------- user account (name + password) and cloud sync of progress + demo account ----------
+   Only exists in the full website (LIVE_API). Local data stays in this browser; with an account it is also kept on the server. */
+var AUTH_KEY='masluol-hon-auth-v1';
+var CL={user:null,token:null,st:'off',at:0,msg:'',ver:0,synced:false,dirty:false,subs:[],timer:null};
+
+(function(){
+  try{var s=JSON.parse(localStorage.getItem(AUTH_KEY));if(s&&s.token&&s.user){CL.user=s.user;CL.token=s.token;}}catch(e){}
+})();
+function clStore(){
+  try{
+    if(CL.token){localStorage.setItem(AUTH_KEY,JSON.stringify({user:CL.user,token:CL.token}));}
+    else{localStorage.removeItem(AUTH_KEY);}
+  }catch(e){}
+}
+function clEmit(){CL.subs.slice().forEach(function(f){try{f();}catch(e){}});}
+function useCloud(){
+  var s=useState(0),set=s[1];
+  useEffect(function(){
+    function f(){set(function(x){return x+1;});}
+    CL.subs.push(f);
+    return function(){var i=CL.subs.indexOf(f);if(i>=0){CL.subs.splice(i,1);}};
+  },[]);
+  return CL;
+}
+
+function mergeProg(a,b){
+  a=a||{};b=b||{};
+  var o={};
+  Object.keys(a).concat(Object.keys(b)).forEach(function(k){
+    if(o[k]){return;}
+    var x=a[k],y=b[k];
+    if(!x){o[k]=y;}
+    else if(!y){o[k]=x;}
+    else{
+      var w=(y.best||0)>(x.best||0)?y:x;
+      var m={best:Math.max(x.best||0,y.best||0),done:!!(x.done||y.done)};
+      if(w.n){m.n=w.n;}
+      o[k]=m;
+    }
+  });
+  return o;
+}
+
+function clExpired(){
+  CL.token=null;CL.synced=false;CL.st='off';CL.expired=true;
+  clStore();clEmit();
+}
+function clFail(r){
+  if(r&&r.code==='auth'){clExpired();return;}
+  CL.st='err';CL.msg=r&&r.msg?r.msg:'לא הצלחנו להתחבר לשירות השמירה.';clEmit();
+}
+
+/* send what is on this device (only after the first sync of this visit, so an empty device never erases the account) */
+function clPushNow(){
+  if(!LIVE_API||!CL.token||!CL.synced){return Promise.resolve();}
+  if(CL.timer){clearTimeout(CL.timer);CL.timer=null;}
+  CL.dirty=false;CL.st='syncing';clEmit();
+  return apiPost('data',{demo:demoLoad(),prog:loadProg()},CL.token).then(function(r){
+    if(r&&r.ok){CL.st='ok';CL.at=Date.now();CL.msg='';clEmit();}
+    else{CL.dirty=true;clFail(r);}
+  },function(){CL.dirty=true;CL.st='err';CL.msg='אין חיבור לשירות השמירה. ננסה שוב בשינוי הבא.';clEmit();});
+}
+function clPushSoon(){
+  if(!LIVE_API||!CL.token){return;}
+  CL.dirty=true;
+  if(!CL.synced){return;}
+  if(CL.timer){clearTimeout(CL.timer);}
+  CL.st='syncing';clEmit();
+  CL.timer=setTimeout(clPushNow,1200);
+}
+
+/* pull the account, merge with this device, push back anything newer that we hold */
+function clSync(){
+  if(!LIVE_API||!CL.token){return Promise.resolve();}
+  CL.st='syncing';clEmit();
+  return apiGet('data',{},CL.token).then(function(r){
+    if(!r||!r.ok){clFail(r);return;}
+    var d=r.data||{};
+    var lp=loadProg(),mp=mergeProg(lp,d.prog);
+    var changed=false;
+    if(JSON.stringify(mp)!==JSON.stringify(lp)){saveProg(mp,true);changed=true;}
+    var ld=demoLoad(),rd=d.demo||null,md=ld;
+    if(rd&&(!ld||(rd.u||0)>(ld.u||0))){demoSave(rd,true);md=rd;changed=true;}
+    CL.synced=true;
+    if(changed){CL.ver++;}
+    var need=JSON.stringify(mp)!==JSON.stringify(d.prog||{})||(md&&(!rd||(md.u||0)>(rd.u||0)))||CL.dirty;
+    if(need){return clPushNow();}
+    CL.st='ok';CL.at=Date.now();CL.msg='';clEmit();
+  },function(){CL.st='err';CL.msg='לא הצלחנו להתחבר לשירות השמירה.';clEmit();});
+}
+
+function clAuth(action,user,pass){
+  return apiPost('auth',{action:action,user:user,pass:pass}).then(function(r){
+    if(r&&r.ok&&r.token){
+      CL.token=r.token;CL.user=r.user;CL.synced=false;CL.expired=false;CL.msg='';
+      clStore();clEmit();
+      return clSync().then(function(){return {ok:true};});
+    }
+    return {ok:false,msg:r&&r.msg?r.msg:'לא הצלחנו להתחבר.'};
+  },function(){return {ok:false,msg:'אין חיבור לשירות החשבונות. נסו שוב בעוד רגע.'};});
+}
+
+/* log out: the data stays in the account; this device is cleaned so the next person starts fresh */
+function clLogout(){
+  var tok=CL.token;
+  var go=Promise.resolve();
+  if(tok&&CL.synced&&CL.dirty){go=clPushNow();}
+  return go.then(function(){
+    if(tok){try{apiPost('auth',{action:'logout',token:tok}).then(function(){},function(){});}catch(e){}}
+    CL.token=null;CL.user=null;CL.synced=false;CL.dirty=false;CL.st='off';CL.msg='';CL.expired=false;
+    if(CL.timer){clearTimeout(CL.timer);CL.timer=null;}
+    clStore();
+    try{localStorage.removeItem(KEY);}catch(e){}
+    demoClear(true);
+    CL.ver++;clEmit();
+  });
+}
+
+/* last chance to save when the tab is closed */
+try{
+  window.addEventListener('pagehide',function(){
+    if(!LIVE_API||!CL.token||!CL.synced||!CL.dirty){return;}
+    try{
+      fetch('/api/data',{method:'POST',keepalive:true,headers:{'Content-Type':'application/json',Authorization:'Bearer '+CL.token},body:JSON.stringify({demo:demoLoad(),prog:loadProg()})});
+    }catch(e){}
+  });
+  if(LIVE_API&&CL.token){setTimeout(clSync,0);}
+}catch(e){}
+
+function clStatusText(c){
+  if(c.st==='syncing'){return 'שומרים...';}
+  if(c.st==='ok'){return 'נשמר ב-'+dStamp(c.at).split(' ')[1];}
+  if(c.st==='err'){return c.msg||'השמירה נכשלה';}
+  return '';
+}
+
+/* ---------- account page ---------- */
+function AccountView(p){
+  var c=useCloud();
+  var s1=useState('new'),mode=s1[0],setMode=s1[1];
+  var s2=useState(''),user=s2[0],setUser=s2[1];
+  var s3=useState(''),pass=s3[0],setPass=s3[1];
+  var s4=useState(false),busy=s4[0],setBusy=s4[1];
+  var s5=useState(null),err=s5[0],setErr=s5[1];
+  var s6=useState(false),askOut=s6[0],setAskOut=s6[1];
+  var s7=useState(false),showPw=s7[0],setShowPw=s7[1];
+
+  function submit(e){
+    if(e&&e.preventDefault){e.preventDefault();}
+    if(busy){return;}
+    var u=user.trim();
+    if(mode==='new'){
+      if(!/^[\p{L}\p{N}_.-]{3,20}$/u.test(u)){setErr('שם משתמש: 3 עד 20 תווים, אותיות, ספרות, נקודה, קו תחתון או מקף.');return;}
+      if(pass.length<6){setErr('הסיסמה צריכה להיות באורך 6 תווים לפחות.');return;}
+    }else if(!u||!pass){setErr('יש להזין שם משתמש וסיסמה.');return;}
+    setBusy(true);setErr(null);
+    clAuth(mode==='new'?'register':'login',u,pass).then(function(r){
+      setBusy(false);
+      if(!r.ok){setErr(r.msg);return;}
+      setPass('');
+    });
+  }
+
+  var crumbs=html`<div className="crumbs"><button type="button" onClick=${function(){p.go({v:'home'});}}>דף הבית</button><span>חשבון</span></div>`;
+
+  if(!LIVE_API){
+    return html`<div className="page"><div className="in">${crumbs}
+      <h1>חשבון אישי</h1>
+      <p className="lede">יצירת חשבון זמינה באתר המלא. בתצוגה המקדימה ההתקדמות נשמרת בדפדפן בלבד.</p>
+    </div></div>`;
+  }
+
+  if(c.token&&c.user){
+    var prog=loadProg();
+    var nDone=LESSONS.filter(function(l){return prog[l.id]&&prog[l.id].done;}).length;
+    var dm=demoLoad();
+    return html`<div className="page"><div className="in">${crumbs}
+      <span className="eyebrow">מחוברים</span>
+      <h1>שלום, <bdi dir="ltr">${c.user}</bdi></h1>
+      <p className="lede">ההתקדמות בקורס וחשבון הדמו נשמרים אוטומטית בחשבון שלכם. כדי לראות אותם במכשיר אחר, מתחברים שם עם אותו שם משתמש וסיסמה.</p>
+      <div className="ac-card">
+        <div className="ac-row"><span>מצב השמירה</span><b className=${'ac-st '+c.st} role="status" aria-live="polite">${c.st==='ok'?'הכול נשמר. '+clStatusText(c):c.st==='syncing'?'שומרים...':c.st==='err'?clStatusText(c):'מחוברים'}</b></div>
+        <div className="ac-row"><span>שיעורים שהושלמו</span><b>${nDone} מתוך ${LESSONS.length}</b></div>
+        <div className="ac-row"><span>חשבון דמו</span><b>${dm?'פעיל, שווי '+usd(demoStats(dm).total):'עדיין לא נפתח'}</b></div>
+        <div className="cta-row" style=${{marginTop:16}}>
+          <button type="button" className="btn" onClick=${function(){p.go({v:'demo'});}}>לחשבון הדמו</button>
+          <button type="button" className="btn ghost" onClick=${function(){p.go({v:'course'});}}>להמשך הקורס</button>
+          <button type="button" className="btn ghost" disabled=${c.st==='syncing'} onClick=${function(){CL.dirty=true;clSync();}}>שמירה ורענון עכשיו</button>
+        </div>
+      </div>
+      ${askOut?html`<div className="callout bad" role="alert" style=${{marginTop:18,maxWidth:760}}><b>להתנתק?</b> הנתונים נשארים בחשבון, ואפשר לחזור אליהם בכל רגע בהתחברות. מהמכשיר הזה הם יימחקו, כדי שמי שישתמש בו אחריכם לא יראה אותם.
+        <div className="cta-row" style=${{marginTop:12}}>
+          <button type="button" className="btn sell" onClick=${function(){clLogout().then(function(){setAskOut(false);});}}>כן, להתנתק</button>
+          <button type="button" className="btn ghost" onClick=${function(){setAskOut(false);}}>ביטול</button>
+        </div></div>`
+        :html`<div className="cta-row" style=${{marginTop:18}}><button type="button" className="btn ghost" onClick=${function(){setAskOut(true);}}>התנתקות</button></div>`}
+    </div></div>`;
+  }
+
+  return html`<div className="page"><div className="in">${crumbs}
+    <span className="eyebrow">חינם, בלי אימייל</span>
+    <h1>${mode==='new'?'יצירת חשבון':'התחברות'}</h1>
+    <p className="lede">חשבון שומר את ההתקדמות בקורס ואת חשבון הדמו, כך שלא יאבדו כשמנקים את הדפדפן או עוברים לטלפון אחר. בוחרים שם משתמש וסיסמה, וזהו.</p>
+    ${c.expired?html`<div className="callout bad" role="alert" style=${{maxWidth:560}}>ההתחברות פגה. התחברו שוב כדי להמשיך לשמור.</div>`:null}
+    <div className="ac-card">
+      <${Seg} label="יצירה או התחברות" value=${mode} set=${function(v){setMode(v);setErr(null);}} options=${[['new','חשבון חדש'],['in','יש לי חשבון']]} />
+      <form onSubmit=${submit} noValidate>
+        <label htmlFor="ac-user" className="lbl">שם משתמש</label>
+        <input id="ac-user" className="ac-in" type="text" dir="ltr" autoComplete="username" autoCapitalize="none" spellCheck="false" value=${user} onChange=${function(e){setUser(e.target.value);setErr(null);}} disabled=${busy} />
+        <label htmlFor="ac-pass" className="lbl">סיסמה${mode==='new'?' (6 תווים לפחות)':''}</label>
+        <div className="ac-pw">
+          <input id="ac-pass" className="ac-in" type=${showPw?'text':'password'} dir="ltr" autoComplete=${mode==='new'?'new-password':'current-password'} value=${pass} onChange=${function(e){setPass(e.target.value);setErr(null);}} disabled=${busy} />
+          <button type="button" className="btn ghost sm" onClick=${function(){setShowPw(!showPw);}}>${showPw?'הסתרה':'הצגה'}</button>
+        </div>
+        ${err?html`<div className="callout bad" role="alert" style=${{marginTop:12}}>${err}</div>`:null}
+        <div className="cta-row" style=${{marginTop:16}}>
+          <button type="submit" className="btn" disabled=${busy}>${busy?'רגע...':mode==='new'?'יצירת חשבון':'התחברות'}</button>
+        </div>
+      </form>
+      ${mode==='new'?html`<p className="note" style=${{marginTop:14}}><b>חשוב לדעת:</b> אנחנו לא אוספים אימייל, ולכן אי אפשר לשחזר סיסמה שנשכחה. שמרו אותה במקום בטוח. מה שכבר עשיתם במכשיר הזה (שיעורים וחשבון דמו) יעבור לחשבון החדש.</p>`:null}
+    </div>
+  </div></div>`;
 }
 
 /* ===== stocks.js ===== */
@@ -3840,10 +4085,16 @@ function demoLoad(){
   }catch(e){}
   return null;
 }
-function demoSave(a){
-  try{localStorage.setItem(DEMO_KEY,JSON.stringify(a));return true;}catch(e){return false;}
+function demoSave(a,quiet){
+  var ok=false;
+  try{localStorage.setItem(DEMO_KEY,JSON.stringify(a));ok=true;}catch(e){}
+  if(!quiet&&typeof clPushSoon==='function'){clPushSoon();}
+  return ok;
 }
-function demoClear(){try{localStorage.removeItem(DEMO_KEY);}catch(e){}}
+function demoClear(quiet){
+  try{localStorage.removeItem(DEMO_KEY);}catch(e){}
+  if(!quiet&&typeof clPushSoon==='function'){clPushSoon();}
+}
 
 /* totals for an account */
 function demoStats(a){
@@ -3917,12 +4168,8 @@ function Demo(p){
   var s12=useState(0),refFail=s12[0],setRefFail=s12[1];
   var s13=useState(false),askReset=s13[0],setAskReset=s13[1];
   var s14=useState(true),saved=s14[0],setSaved=s14[1];
-  var s15=useState(null),cloud=s15[0],setCloud=s15[1];
-  var s16=useState(''),codeIn=s16[0],setCodeIn=s16[1];
-  var s17=useState(false),restoreBusy=s17[0],setRestoreBusy=s17[1];
-  var s18=useState(null),restoreErr=s18[0],setRestoreErr=s18[1];
-  var s19=useState(false),copied=s19[0],setCopied=s19[1];
-  var skipSave=useRef(false),saveTimer=useRef(null),pending=useRef(false);
+  var cl=useCloud();
+  var verSeen=useRef(cl.ver);
   var seq=useRef(0),acctRef=useRef(acct),tradeRef=useRef(null);
   acctRef.current=acct;
 
@@ -3951,95 +4198,15 @@ function Demo(p){
       setRefBusy(false);setRefAt(Date.now());setRefFail(fail);
     });
   }
-  /* ---- cloud copy (personal code) ---- */
-  function cloudSaveNow(a){
-    pending.current=false;
-    setCloud({st:'saving'});
-    return apiPost('demo',{action:'save',code:a.code,account:a}).then(function(r){
-      if(r&&r.ok){setCloud({st:'ok',at:Date.now()});}
-      else{setCloud({st:'err',msg:r&&r.msg?r.msg:'לא הצלחנו לשמור בענן.'});}
-    },function(){setCloud({st:'err',msg:'אין חיבור לשירות השמירה. ננסה שוב בשינוי הבא.'});});
-  }
-  function syncFromCloud(){
-    var a0=acctRef.current;
-    return apiGet('demo',{code:a0.code}).then(function(r){
-      if(!r||!r.ok||!r.account){
-        setCloud({st:'err',msg:r&&r.code==='nocode'?'החשבון לא נמצא בענן. אפשר ליצור קוד חדש.':'לא הצלחנו להתחבר לשירות השמירה.'});
-        return;
-      }
-      var loc=acctRef.current;
-      if((r.account.u||0)>(loc.u||0)){
-        var a=r.account;a.code=r.code;
-        skipSave.current=true;
-        setSaved(demoSave(a));setAcct(a);setCloud({st:'ok',at:Date.now()});
-      }else if((loc.u||0)>(r.account.u||0)){
-        return cloudSaveNow(loc);
-      }else{setCloud({st:'ok',at:r.updated||Date.now()});}
-    },function(){setCloud({st:'err',msg:'לא הצלחנו להתחבר לשירות השמירה.'});});
-  }
+  /* the account may have been updated by a sync (login, another device) */
   useEffect(function(){
-    if(!acct){return;}
-    function after(){
-      var cur=acctRef.current;
-      if(LIVE_API&&cur&&Object.keys(cur.hold).length){refreshAll();}
-    }
-    if(LIVE_API&&acct.code){syncFromCloud().then(after,after);}else{after();}
+    if(verSeen.current===cl.ver){return;}
+    verSeen.current=cl.ver;
+    setAcct(demoLoad());setLook(null);setMsg(null);
+  },[cl.ver]);
+  useEffect(function(){
+    if(acct&&LIVE_API&&Object.keys(acct.hold).length){refreshAll();}
   },[]);
-  /* every change is saved to the cloud shortly after it happens */
-  useEffect(function(){
-    if(!LIVE_API||!acct||!acct.code){return;}
-    if(skipSave.current){skipSave.current=false;return;}
-    if(saveTimer.current){clearTimeout(saveTimer.current);}
-    pending.current=true;
-    setCloud({st:'saving'});
-    saveTimer.current=setTimeout(function(){cloudSaveNow(acctRef.current);},1200);
-  },[acct]);
-  useEffect(function(){
-    return function(){
-      if(saveTimer.current){clearTimeout(saveTimer.current);}
-      var a=acctRef.current;
-      if(pending.current&&a&&a.code){cloudSaveNow(a);}
-    };
-  },[]);
-  function createCloud(){
-    setCloud({st:'saving'});
-    apiPost('demo',{action:'create',account:acctRef.current}).then(function(r){
-      if(r&&r.ok&&r.code){
-        var a=JSON.parse(JSON.stringify(acctRef.current));
-        a.code=r.code;
-        skipSave.current=true;
-        setSaved(demoSave(a));setAcct(a);setCloud({st:'ok',at:Date.now()});
-      }else{setCloud({st:'err',msg:r&&r.msg?r.msg:'לא הצלחנו לשמור בענן. נסו שוב.'});}
-    },function(){setCloud({st:'err',msg:'אין חיבור לשירות השמירה. נסו שוב.'});});
-  }
-  function restore(e){
-    if(e&&e.preventDefault){e.preventDefault();}
-    var c=codeIn.trim();
-    if(!c||restoreBusy){return;}
-    setRestoreBusy(true);setRestoreErr(null);
-    apiGet('demo',{code:c}).then(function(r){
-      setRestoreBusy(false);
-      if(!r||!r.ok||!r.account){setRestoreErr(r&&r.msg?r.msg:'לא הצלחנו לשחזר את החשבון.');return;}
-      var a=r.account;a.code=r.code;
-      skipSave.current=true;
-      setSaved(demoSave(a));setAcct(a);setCloud({st:'ok',at:Date.now()});setCodeIn('');
-    },function(){setRestoreBusy(false);setRestoreErr('לא הצלחנו להתחבר לשירות השמירה. נסו שוב.');});
-  }
-  function copyCode(){
-    var c=acct&&acct.code;
-    if(!c){return;}
-    function done(){setCopied(true);setTimeout(function(){setCopied(false);},2200);}
-    try{
-      if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(c).then(done,function(){selectCode();});return;}
-    }catch(e){}
-    selectCode();
-  }
-  function selectCode(){
-    try{
-      var el=document.getElementById('dm-code');
-      if(el){var r=document.createRange();r.selectNodeContents(el);var s=window.getSelection();s.removeAllRanges();s.addRange(r);}
-    }catch(e){}
-  }
 
   function lookup(sym,wantSide){
     var t=String(sym||'').trim();
@@ -4070,10 +4237,8 @@ function Demo(p){
     setAcct(a);setLook(null);setMsg(null);setLookErr(null);
   }
   function resetAccount(){
-    if(saveTimer.current){clearTimeout(saveTimer.current);}
-    pending.current=false;
     demoClear();
-    setAcct(null);setLook(null);setMsg(null);setLookErr(null);setAskReset(false);setQty('');setCloud(null);
+    setAcct(null);setLook(null);setMsg(null);setLookErr(null);setAskReset(false);setQty('');
   }
 
   /* what the current order would do */
@@ -4159,15 +4324,8 @@ function Demo(p){
           <button type="button" className="btn" onClick=${openAccount}>פתיחת חשבון דמו</button>
         </div>
       </div>
-      ${LIVE_API?html`<form className="dm-restore" onSubmit=${restore}>
-        <label htmlFor="dm-code-in" className="lbl" style=${{marginTop:0}}>כבר שמרתם חשבון בענן? הקלידו את הקוד האישי</label>
-        <div className="ls-row">
-          <input id="dm-code-in" type="text" dir="ltr" autoComplete="off" autoCapitalize="characters" spellCheck="false" placeholder="XXXX-XXXX-XXXX-XXXX" value=${codeIn} onChange=${function(e){setCodeIn(e.target.value);setRestoreErr(null);}} disabled=${restoreBusy} />
-          <button type="submit" className="btn ghost" disabled=${restoreBusy||!codeIn.trim()}>${restoreBusy?'משחזרים...':'שחזור'}</button>
-        </div>
-        ${restoreErr?html`<div className="callout bad" role="alert" style=${{marginTop:10}}>${restoreErr}</div>`:null}
-      </form>`:null}
-      <div className="callout info" role="note" style=${{marginTop:24,maxWidth:860}}><b>איך זה עובד</b> ${LIVE_API?'המחיר של כל מניה נמשך משירות מחירים חיצוני ברגע שמחפשים אותה, וקונים ומוכרים במחיר הזה. אפשר לסחור בכל חברה אמריקאית.':'בתצוגה המקדימה זמינות תשע חברות הדוגמה, במחיר הסגירה האחרון שאספנו. באתר המלא אפשר לסחור בכל חברה אמריקאית במחיר חי.'} החשבון נשמר בדפדפן במכשיר הזה, ${LIVE_API?'ואפשר גם לשמור אותו בענן עם קוד אישי כדי שלא יאבד ויהיה זמין בכל מכשיר':'ולא יועבר למכשירים אחרים'}. בלי עמלות, בלי מיסים ובלי פער בין מחיר קנייה למחיר מכירה, ולכן התוצאות טובות יותר מהמציאות.</div>
+      ${LIVE_API&&!cl.token?html`<div className="dm-cloud" style=${{marginTop:18}}><div className="dm-cl-h"><b>יש לכם כבר חשבון באתר?</b></div><p className="note" style=${{margin:'4px 0 10px'}}>התחברו וחשבון הדמו שלכם יחזור מהענן, גם במכשיר חדש.</p><button type="button" className="btn ghost" onClick=${function(){p.go({v:'account'});}}>התחברות</button></div>`:null}
+      <div className="callout info" role="note" style=${{marginTop:24,maxWidth:860}}><b>איך זה עובד</b> ${LIVE_API?'המחיר של כל מניה נמשך משירות מחירים חיצוני ברגע שמחפשים אותה, וקונים ומוכרים במחיר הזה. אפשר לסחור בכל חברה אמריקאית.':'בתצוגה המקדימה זמינות תשע חברות הדוגמה, במחיר הסגירה האחרון שאספנו. באתר המלא אפשר לסחור בכל חברה אמריקאית במחיר חי.'} החשבון נשמר בדפדפן במכשיר הזה, ${LIVE_API?'ובחשבון באתר הוא נשמר גם בענן, כדי שלא יאבד ויהיה זמין בכל מכשיר':'ולא יועבר למכשירים אחרים'}. בלי עמלות, בלי מיסים ובלי פער בין מחיר קנייה למחיר מכירה, ולכן התוצאות טובות יותר מהמציאות.</div>
     </div></div>`;
   }
 
@@ -4199,21 +4357,15 @@ function Demo(p){
       <${Stat} label="שווי המניות" value=${usd(st.val)} sub=${keys.length?keys.length+' אחזקות':'אין אחזקות'} />
     </div>
     ${!saved?html`<div className="callout bad" role="alert"><b>החשבון לא נשמר.</b> הדפדפן חוסם שמירה במכשיר, ולכן החשבון יימחק כשתסגרו את הדף.</div>`:null}
-    ${LIVE_API?(acct.code
+    ${LIVE_API?(cl.token&&cl.user
       ?html`<section className="dm-cloud ok" aria-label="שמירה בענן">
-        <div className="dm-cl-h"><b>החשבון שמור בענן</b>
-          <span className=${'dm-cl-st '+(cloud&&cloud.st||'')} role="status" aria-live="polite">${cloud&&cloud.st==='saving'?'שומרים...':cloud&&cloud.st==='ok'?'נשמר ב-'+dStamp(cloud.at).split(' ')[1]:cloud&&cloud.st==='err'?cloud.msg:''}</span></div>
-        <div className="dm-cl-row">
-          <code id="dm-code" dir="ltr">${acct.code}</code>
-          <button type="button" className="btn ghost sm" onClick=${copyCode}>${copied?'הועתק':'העתקת הקוד'}</button>
-        </div>
-        <p className="note" style=${{margin:'8px 0 0'}}>הקוד הוא המפתח לחשבון. שמרו אותו במקום בטוח (למשל בהערות בטלפון) כדי לשחזר את החשבון בכל מכשיר דרך מסך הפתיחה. כל מי שיש לו את הקוד יכול לראות ולשנות את החשבון, ואי אפשר לשחזר קוד שאבד.</p>
+        <div className="dm-cl-h"><b>נשמר בחשבון <bdi dir="ltr">${cl.user}</bdi></b>
+          <span className=${'dm-cl-st '+(cl.st||'')} role="status" aria-live="polite">${clStatusText(cl)}</span></div>
       </section>`
       :html`<section className="dm-cloud" aria-label="שמירה בענן">
         <div className="dm-cl-h"><b>החשבון שמור כרגע רק במכשיר הזה</b></div>
-        <p className="note" style=${{margin:'4px 0 10px'}}>ניקוי דפדפן, חלון פרטי או מעבר למכשיר אחר ימחקו אותו. שמירה בענן נותנת קוד אישי שמשחזר את החשבון בכל מכשיר, בלי הרשמה ובלי אימייל.</p>
-        <button type="button" className="btn" disabled=${!!(cloud&&cloud.st==='saving')} onClick=${createCloud}>${cloud&&cloud.st==='saving'?'שומרים...':'שמירה בענן וקבלת קוד'}</button>
-        ${cloud&&cloud.st==='err'?html`<div className="callout bad" role="alert" style=${{marginTop:10}}>${cloud.msg}</div>`:null}
+        <p className="note" style=${{margin:'4px 0 10px'}}>ניקוי דפדפן, חלון פרטי או מעבר למכשיר אחר ימחקו אותו. יצירת חשבון חינמית (שם משתמש וסיסמה, בלי אימייל) שומרת אותו בענן.</p>
+        <button type="button" className="btn" onClick=${function(){p.go({v:'account'});}}>יצירת חשבון או התחברות</button>
       </section>`):null}
 
     ${snaps.length>=2?html`<div className="dm-chart">
@@ -4307,7 +4459,7 @@ function Demo(p){
     <div className="callout info" role="note" style=${{marginTop:14,maxWidth:860}}><b>הסתייגות</b> זו הדמיה לימודית בכסף וירטואלי. אין בה עמלות, מיסים או פער בין קנייה למכירה, והמחירים עלולים להיות מעוכבים או שגויים. הצלחה בדמו אינה מבטיחה הצלחה בכסף אמיתי, ואינה המלצה לקנות או למכור.</div>
 
     <div className="dm-reset">
-      ${askReset?html`<div className="callout bad" role="alert"><b>למחוק את החשבון ולהתחיל מחדש?</b> כל האחזקות וההיסטוריה יימחקו מהמכשיר הזה. ${acct.code?'העותק בענן יישאר, ואפשר לשחזר אותו בעזרת הקוד '+acct.code+'.':'אי אפשר לשחזר.'}
+      ${askReset?html`<div className="callout bad" role="alert"><b>למחוק את החשבון ולהתחיל מחדש?</b> כל האחזקות וההיסטוריה יימחקו מהמכשיר הזה. ${cl.token?'המחיקה תתעדכן גם בחשבון שלכם בענן.':'אי אפשר לשחזר.'}
         <div className="actions" style=${{marginTop:10}}>
           <button type="button" className="btn sell" onClick=${resetAccount}>כן, למחוק ולהתחיל מחדש</button>
           <button type="button" className="btn ghost" onClick=${function(){setAskReset(false);}}>ביטול</button>
@@ -4594,6 +4746,7 @@ function Outcomes(){
 
 /* ---------- home / landing ---------- */
 function Home(p){
+  var cl=useCloud();
   var nextL=p.nextId&&p.nextId!=='exam'?LESSONS.filter(function(l){return l.id===p.nextId;})[0]:null;
   var started=p.done>0;
   var nTools=SIM_ORDER.length+CALC_ORDER.length;
@@ -4608,6 +4761,7 @@ function Home(p){
             <button type="button" className="btn" onClick=${function(){p.go({v:'stock'});}}>בדקו מניה אמיתית</button>
             <button type="button" className="btn ghost" onClick=${function(){p.go({v:'find'});}}>לעשרת הצעדים</button>
             <button type="button" className="btn ghost" onClick=${function(){p.go({v:'demo'});}}>חשבון דמו</button>
+            ${LIVE_API&&!cl.token?html`<button type="button" className="btn ghost" onClick=${function(){p.go({v:'account'});}}>יצירת חשבון</button>`:null}
           </div>
         </div>
         <${HeroCheck} go=${p.go} />
@@ -4620,6 +4774,17 @@ function Home(p){
         <div><b>${nTools}</b><span>כלים וסימולטורים</span></div>
       </div>
     </div></section>
+
+    ${LIVE_API?html`<section className="sec"><div className="in">
+      <div className="dm-promo ac-promo">
+        <div>
+          <span className="eyebrow">${cl.token?'מחוברים':'חינם, בלי אימייל'}</span>
+          <h2 className="t" style=${{marginBottom:8}}>${cl.token&&cl.user?html`<${React.Fragment}>שלום, <bdi dir="ltr">${cl.user}</bdi><//>`:'יוצרים חשבון ושומרים את ההתקדמות'}</h2>
+          <p className="lede" style=${{marginBottom:0}}>${cl.token?'ההתקדמות בקורס וחשבון הדמו נשמרים אוטומטית, בכל מכשיר שתתחברו אליו.':'שם משתמש וסיסמה, וההתקדמות בקורס וחשבון הדמו נשמרים בענן ולא נעלמים כשמנקים את הדפדפן או עוברים לטלפון אחר.'}</p>
+        </div>
+        <button type="button" className="btn" onClick=${function(){p.go({v:'account'});}}>${cl.token?'לחשבון שלי':'יצירת חשבון'}</button>
+      </div>
+    </div></section>`:null}
 
     <section className="sec"><div className="in">
       <span className="eyebrow">התשובה הקצרה</span>
@@ -4796,6 +4961,7 @@ function SimView(p){
 
 /* ---------- shell ---------- */
 function Header(p){
+  var cl=useCloud();
   var nav=[['find','איך מוצאים מניה טובה','מניה טובה'],['stock','בדיקת מניה אמיתית','מניה אמיתית'],['demo','חשבון דמו','דמו'],['course','הקורס'],['sims','סימולטורים וכלים','כלים'],['exam','מבחן סיום','מבחן']];
   var cur=p.view.v==='lesson'?'course':p.view.v==='sim'?'sims':p.view.v==='check'?'find':p.view.v==='numbers'?'find':p.view.v;
   return html`<header className="top"><div className="in">
@@ -4804,6 +4970,7 @@ function Header(p){
       ${nav.map(function(n){return html`<button key=${n[0]} type="button" aria-current=${cur===n[0]?'page':null} onClick=${function(){p.go({v:n[0]});}}>${n[2]?html`<${React.Fragment}><span className="long">${n[1]}</span><span className="short">${n[2]}</span><//>`:n[1]}</button>`;})}
     </nav>
     <div className="who"><span>${p.done} מתוך ${LESSONS.length} שיעורים</span><${Ring} done=${p.done} total=${LESSONS.length} /></div>
+    ${LIVE_API?html`<button type="button" className=${'acct-chip'+(cl.token?' on':'')} aria-current=${p.view.v==='account'?'page':null} onClick=${function(){p.go({v:'account'});}}>${cl.token&&cl.user?html`<${React.Fragment}><span className="dot" aria-hidden="true"></span><bdi dir="ltr">${cl.user}</bdi><//>`:'כניסה'}</button>`:null}
     ${p.read>0?html`<div className="readbar" style=${{width:p.read+'%'}}></div>`:null}
   </div></header>`;
 }
@@ -4821,7 +4988,7 @@ function SiteFooter(){
 
 function parseView(tok){
   if(!tok||tok==='home'){return {v:'home'};}
-  if(tok==='course'||tok==='sims'||tok==='exam'||tok==='numbers'||tok==='find'||tok==='check'||tok==='stock'||tok==='demo'){return {v:tok};}
+  if(tok==='course'||tok==='sims'||tok==='exam'||tok==='numbers'||tok==='find'||tok==='check'||tok==='stock'||tok==='demo'||tok==='account'){return {v:tok};}
   if(tok.indexOf('stock-')===0){
     var rid=tok.slice(6).toUpperCase();
     if(realById(rid)||(LIVE_API&&/^[A-Z0-9-]{1,10}$/.test(rid))){return {v:'stock',id:rid};}
@@ -4843,6 +5010,13 @@ function App(){
   var s2=useState(loadProg),prog=s2[0],setProg=s2[1];
   var s3=useState(0),read=s3[0],setRead=s3[1];
   var first=useRef(true);
+  var cl=useCloud();
+  var verSeen=useRef(cl.ver);
+  useEffect(function(){
+    if(verSeen.current===cl.ver){return;}
+    verSeen.current=cl.ver;
+    setProg(loadProg());
+  },[cl.ver]);
   var doneCount=LESSONS.filter(function(l){return prog[l.id]&&prog[l.id].done;}).length;
   var nextLesson=LESSONS.filter(function(l){return !(prog[l.id]&&prog[l.id].done);})[0];
   var examDone=!!(prog.exam&&prog.exam.done&&prog.exam.n===EXAM.length);
@@ -4901,6 +5075,8 @@ function App(){
     body=html`<${StockCheck} key=${'s'+(view.id||'')} id=${view.id} go=${go} />`;
   }else if(view.v==='demo'){
     body=html`<${Demo} go=${go} />`;
+  }else if(view.v==='account'){
+    body=html`<${AccountView} go=${go} />`;
   }else if(view.v==='numbers'){
     body=html`<${NumbersView} go=${go} />`;
   }else if(view.v==='sims'){

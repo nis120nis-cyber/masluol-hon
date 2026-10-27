@@ -381,6 +381,92 @@ await t('demo: answers are never cached', async () => {
   assert.equal(r.headers.get('cache-control'), 'no-store');
 });
 
+// ---- user accounts (name + password) ----
+const authFn = (await import('../netlify/functions/auth.mjs')).default;
+const dataFn = (await import('../netlify/functions/data.mjs')).default;
+const A = (b) => authFn(new Request('https://site.test/api/auth', { method: 'POST', body: JSON.stringify(b) }));
+const D = (tok, b) => dataFn(new Request('https://site.test/api/data', { method: b ? 'POST' : 'GET', headers: tok ? { authorization: 'Bearer ' + tok } : {}, body: b ? JSON.stringify(b) : undefined }));
+let TOK = '';
+await t('auth: register creates an account and returns a session token', async () => {
+  const j = await body(await A({ action: 'register', user: 'Alon_1', pass: 'secret1' }));
+  assert.equal(j.ok, true);
+  assert.match(j.token, /^[0-9a-f]{64}$/);
+  assert.equal(j.user, 'Alon_1');
+  TOK = j.token;
+});
+await t('auth: a taken name (any letter case) is refused, bad names and short passwords too', async () => {
+  let r = await A({ action: 'register', user: 'alon_1', pass: 'another1' });
+  assert.equal(r.status, 409);
+  r = await A({ action: 'register', user: 'ab', pass: 'secret1' });
+  assert.equal((await body(r)).code, 'baduser');
+  r = await A({ action: 'register', user: 'bad name!', pass: 'secret1' });
+  assert.equal((await body(r)).code, 'baduser');
+  r = await A({ action: 'register', user: 'newuser', pass: '123' });
+  assert.equal((await body(r)).code, 'badpass');
+});
+await t('auth: login works with the right password only; the answer never contains the password or its hash', async () => {
+  const ok = await A({ action: 'login', user: 'ALON_1', pass: 'secret1' });
+  const txt = await ok.text();
+  assert.equal(ok.status, 200);
+  assert.ok(!/secret1|hash|salt/.test(txt));
+  const no = await A({ action: 'login', user: 'alon_1', pass: 'wrong' });
+  assert.equal(no.status, 401);
+  const none = await A({ action: 'login', user: 'ghost', pass: 'whatever' });
+  assert.equal(none.status, 401);
+  assert.equal((await body(none)).msg, (await body(await A({ action: 'login', user: 'alon_1', pass: 'wrong' }))).msg);
+});
+await t('auth: six wrong passwords lock the account for a while, even for the right password', async () => {
+  await A({ action: 'register', user: 'locky', pass: 'rightpass' });
+  let last;
+  for (let i = 0; i < 6; i++) last = await A({ action: 'login', user: 'locky', pass: 'nope' + i });
+  assert.equal(last.status, 429);
+  const r = await A({ action: 'login', user: 'locky', pass: 'rightpass' });
+  assert.equal(r.status, 429);
+});
+await t('data: needs a valid token', async () => {
+  assert.equal((await D(null)).status, 401);
+  assert.equal((await D('0'.repeat(64))).status, 401);
+  assert.equal((await D('zzz')).status, 401);
+});
+await t('data: empty at first, then saves demo account + progress and returns them', async () => {
+  let g = await body(await D(TOK));
+  assert.equal(g.ok, true);
+  assert.equal(g.data, null);
+  const s = await body(await D(TOK, { demo: acct(), prog: { l1: { best: 3, done: true } } }));
+  assert.equal(s.ok, true);
+  g = await body(await D(TOK));
+  assert.equal(g.user, 'Alon_1');
+  assert.equal(g.data.demo.cash, 7000.01);
+  assert.equal(g.data.demo.evil, undefined);
+  assert.equal(g.data.demo.code, undefined);
+  assert.deepEqual(g.data.prog, { l1: { best: 3, done: true } });
+});
+await t('data: saving only progress keeps the demo account; bad shapes are rejected', async () => {
+  await D(TOK, { prog: { l1: { best: 3, done: true }, l2: { best: 2, done: false } } });
+  const g = await body(await D(TOK));
+  assert.equal(g.data.demo.cash, 7000.01);
+  assert.equal(Object.keys(g.data.prog).length, 2);
+  let r = await D(TOK, { demo: { v: 1, start: -5 } });
+  assert.equal(r.status, 400);
+  r = await D(TOK, { prog: { 'x y': { best: 1 } } });
+  assert.equal(r.status, 400);
+  r = await D(TOK, { demo: null });
+  assert.equal((await body(await D(TOK))).data.demo, null);
+});
+await t('data: users cannot see each other; logout kills the token', async () => {
+  const b = await body(await A({ action: 'register', user: 'bobby', pass: 'bobpass1' }));
+  const g = await body(await D(b.token));
+  assert.equal(g.data, null);
+  await A({ action: 'logout', token: b.token });
+  assert.equal((await D(b.token)).status, 401);
+  assert.equal((await D(TOK)).status, 200);
+});
+await t('auth: answers are never cached', async () => {
+  const r = await A({ action: 'login', user: 'alon_1', pass: 'secret1' });
+  assert.equal(r.headers.get('cache-control'), 'no-store');
+  assert.equal((await D(TOK)).headers.get('cache-control'), 'no-store');
+});
+
 globalThis.fetch = realFetch;
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail ? 1 : 0);

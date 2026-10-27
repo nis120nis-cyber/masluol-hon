@@ -17,6 +17,8 @@ const fns = {
   search: (await import('../netlify/functions/search.mjs')).default,
   quote: (await import('../netlify/functions/quote.mjs')).default,
   demo: (await import('../netlify/functions/demo.mjs')).default,
+  auth: (await import('../netlify/functions/auth.mjs')).default,
+  data: (await import('../netlify/functions/data.mjs')).default,
 };
 const root = path.resolve(process.argv[2] || '.');
 const port = Number(process.argv[3] || 8787);
@@ -39,7 +41,7 @@ http
       if (process.env.SLOW) await new Promise((r) => setTimeout(r, Number(process.env.SLOW)));
       const chunks = [];
       for await (const c of req) chunks.push(c);
-      const init = { method: req.method };
+      const init = { method: req.method, headers: req.headers.authorization ? { authorization: req.headers.authorization } : {} };
       if (req.method !== 'GET' && req.method !== 'HEAD') init.body = Buffer.concat(chunks);
       const r = await fn(new Request('http://localhost' + req.url, init));
       res.writeHead(r.status, Object.fromEntries(r.headers));
