@@ -659,6 +659,44 @@ button.spill:hover{filter:brightness(.95)}
   .ls-row .btn{width:100%}
 }
 
+/* ---------- demo trading account ---------- */
+.btn.sell{background:var(--bad);color:#fff}
+.dm-start{max-width:560px;margin-top:22px;background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:20px}
+.dm-stats{margin-top:18px}
+.dm-chart{margin:22px 0 8px;background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:16px 14px 12px}
+.dm-h{font:800 1.05rem/1.3 var(--f-body);margin:0 0 6px}
+.dm-h2{font:400 clamp(1.5rem,4.4vw,2rem)/1.15 var(--f-display);margin:28px 0 12px}
+.dm-trade{margin-top:8px}
+.dm-chips{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 14px}
+.dm-chip{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:6px 12px;border:1.5px solid var(--line);border-radius:12px;background:var(--surface);color:var(--ink);font:inherit;font-size:.92rem}
+.dm-chip b{font-weight:800;color:var(--brand);font-size:.86rem}
+.dm-chip.on{border-color:var(--brand);background:var(--brand-soft)}
+.dm-chip:disabled{opacity:.6}
+.dm-order{margin-top:14px;background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:18px}
+.dm-co{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:10px 18px}
+.dm-name{font-size:1.2rem;margin-inline-end:10px}
+.dm-px{text-align:end}
+.dm-px strong{display:block;font:400 1.9rem/1.1 var(--f-display);color:var(--brand);font-variant-numeric:tabular-nums}
+.dm-px small{display:block;color:var(--muted);font-size:.84rem;margin-top:2px}
+.dm-sum{margin-top:12px;padding:12px 14px;border-radius:12px;background:var(--brand-soft);line-height:1.6}
+.dm-sum.bad{background:var(--bad-soft);color:var(--bad)}
+.dm-posh{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;justify-content:space-between;margin-top:30px}
+.dm-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,330px),1fr));gap:14px;margin-top:14px}
+.dm-pos-card{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:16px;min-width:0}
+.dm-pc-top{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-start;gap:8px 12px}
+.dm-pc-top b{margin-inline-end:8px}
+.dm-pl{font:800 1.15rem/1.3 var(--f-body);font-variant-numeric:tabular-nums}
+.dm-pl small{font-size:.86rem;font-weight:700}
+.dm-pl.good{color:var(--good)}.dm-pl.bad{color:var(--bad)}
+.dm-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 14px;margin:12px 0 0}
+.dm-grid dt{color:var(--muted);font-size:.82rem}
+.dm-grid dd{margin:0;font-weight:700;font-variant-numeric:tabular-nums}
+.dm-log{margin-top:26px}
+.dm-reset{margin-top:26px}
+.dm-promo{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:18px 28px;background:var(--brand-soft);border-radius:22px;padding:clamp(20px,4vw,34px)}
+.dm-promo>div{flex:1 1 320px;min-width:0}
+.dm-promo .btn{flex:0 0 auto}
+
 </style>
 </head>
 <body>
@@ -3736,6 +3774,400 @@ function StockCheck(p){
   </div></div>`;
 }
 
+/* ===== demo.js ===== */
+/* ---------- demo trading account: virtual money, real prices, saved on this device only ---------- */
+var DEMO_KEY='masluol-hon-demo-v1';
+var DEMO_STARTS=[[5000,'5,000$'],[10000,'10,000$'],[25000,'25,000$'],[100000,'100,000$']];
+
+function r2(v){return Math.round(v*100)/100;}
+function r4(v){return Math.round(v*10000)/10000;}
+function usd(v,d){return mny(v,d===undefined?2:d,'$');}
+function susd(v){
+  var a=Math.abs(v);
+  return LRM+(r2(v)>0?'+':r2(v)<0?'-':'')+'$'+fx(a,2);
+}
+function shFmt(v){
+  if(typeof v!=='number'||!isFinite(v)){return '—';}
+  if(Math.abs(v-Math.round(v))<0.00005){return nf0.format(Math.round(v));}
+  return fx(v,4).replace(/0+$/,'');
+}
+function pad2(n){return n<10?'0'+n:String(n);}
+function dStamp(ts){
+  var d=new Date(ts);
+  return d.getDate()+'.'+(d.getMonth()+1)+'.'+d.getFullYear()+' '+pad2(d.getHours())+':'+pad2(d.getMinutes());
+}
+function dShort(ts){var d=new Date(ts);return d.getDate()+'.'+(d.getMonth()+1);}
+
+function demoNew(start){
+  return {v:1,start:start,cash:start,hold:{},log:[],snap:[{t:Date.now(),v:start}],created:Date.now()};
+}
+function demoLoad(){
+  try{
+    var s=localStorage.getItem(DEMO_KEY);
+    if(s){
+      var d=JSON.parse(s);
+      if(d&&d.v===1&&typeof d.cash==='number'&&typeof d.start==='number'&&d.hold&&Array.isArray(d.log)&&Array.isArray(d.snap)){return d;}
+    }
+  }catch(e){}
+  return null;
+}
+function demoSave(a){
+  try{localStorage.setItem(DEMO_KEY,JSON.stringify(a));return true;}catch(e){return false;}
+}
+function demoClear(){try{localStorage.removeItem(DEMO_KEY);}catch(e){}}
+
+/* totals for an account */
+function demoStats(a){
+  var val=0,cost=0;
+  Object.keys(a.hold).forEach(function(k){
+    var x=a.hold[k];
+    var px=x.px>0?x.px:(x.sh>0?x.cost/x.sh:0);
+    val+=x.sh*px;
+    cost+=x.cost;
+  });
+  var realized=0;
+  a.log.forEach(function(l){if(l.side==='sell'&&typeof l.pl==='number'){realized+=l.pl;}});
+  var total=a.cash+val;
+  return {val:val,cost:cost,total:total,pl:total-a.start,plPct:(total/a.start-1)*100,unreal:val-cost,realized:realized};
+}
+/* add a point to the value history (replaces the last one when it is less than a minute old) */
+function demoSnap(a){
+  var st=demoStats(a),now=Date.now();
+  var last=a.snap[a.snap.length-1];
+  if(last&&a.snap.length>1&&now-last.t<60000){a.snap[a.snap.length-1]={t:now,v:r2(st.total)};}
+  else{a.snap.push({t:now,v:r2(st.total)});}
+  if(a.snap.length>300){a.snap.splice(1,a.snap.length-300);}
+}
+
+/* one price: the live service on the full site, the dated snapshot in the preview */
+function demoQuote(sym){
+  sym=String(sym||'').trim().toUpperCase().replace(/\./g,'-');
+  if(!LIVE_API){
+    for(var i=0;i<REAL_COS.length;i++){
+      if(REAL_COS[i].tk===sym){return Promise.resolve({ok:true,tk:sym,n:REAL_COS[i].n,price:REAL_COS[i].price,asOf:REAL_COS[i].pd,src:'מחיר סגירה מתאריך '+REAL_COS[i].pd,at:Date.now()});}
+    }
+    return Promise.resolve({ok:false,msg:'בתצוגה המקדימה אפשר לסחור רק בתשע חברות הדוגמה. באתר המלא אפשר לסחור בכל חברה אמריקאית.'});
+  }
+  return apiGet('quote',{symbol:sym}).then(function(q){
+    if(q&&q.ok&&q.price>0){
+      return {ok:true,tk:q.tk||sym,price:q.price,asOf:q.asOf?heIso(q.asOf):'',src:q.source||'',at:Date.now()};
+    }
+    var code=q&&q.code;
+    return {ok:false,msg:code==='noquote'?'מחיר חי אינו מופעל באתר כרגע.':code==='noprice'?'לא מצאנו מחיר לסימול הזה. בדקו שהסימול נכון ושהמניה נסחרת בבורסה אמריקאית.':code==='badsym'?'הסימול אינו תקין. הקלידו סימול אמריקאי, למשל KO.':'שירות המחירים לא ענה. נסו שוב בעוד רגע.'};
+  },function(){
+    return {ok:false,msg:'לא הצלחנו להתחבר לשירות המחירים. בדקו את החיבור ונסו שוב.'};
+  });
+}
+/* price + company name */
+function demoLookup(sym){
+  var up=String(sym||'').trim().toUpperCase().replace(/\./g,'-');
+  var namep=LIVE_API?searchLive(up).then(function(l){
+    for(var i=0;i<l.length;i++){if(l[i].t===up){return l[i].n;}}
+    return '';
+  }).catch(function(){return '';}):Promise.resolve('');
+  return Promise.all([demoQuote(up),namep]).then(function(rs){
+    var q=rs[0];
+    if(q.ok&&!q.n){q.n=rs[1]||q.tk;}
+    return q;
+  });
+}
+
+/* ---------- the screen ---------- */
+function Demo(p){
+  var s1=useState(demoLoad),acct=s1[0],setAcct=s1[1];
+  var s2=useState(10000),startSel=s2[0],setStartSel=s2[1];
+  var s3=useState(null),look=s3[0],setLook=s3[1];
+  var s4=useState(null),lookBusy=s4[0],setLookBusy=s4[1];
+  var s5=useState(null),lookErr=s5[0],setLookErr=s5[1];
+  var s6=useState('buy'),side=s6[0],setSide=s6[1];
+  var s7=useState('usd'),mode=s7[0],setMode=s7[1];
+  var s8=useState(''),qty=s8[0],setQty=s8[1];
+  var s9=useState(null),msg=s9[0],setMsg=s9[1];
+  var s10=useState(false),refBusy=s10[0],setRefBusy=s10[1];
+  var s11=useState(0),refAt=s11[0],setRefAt=s11[1];
+  var s12=useState(0),refFail=s12[0],setRefFail=s12[1];
+  var s13=useState(false),askReset=s13[0],setAskReset=s13[1];
+  var s14=useState(true),saved=s14[0],setSaved=s14[1];
+  var seq=useRef(0),acctRef=useRef(acct),tradeRef=useRef(null);
+  acctRef.current=acct;
+
+  function commit(a){
+    demoSnap(a);
+    setSaved(demoSave(a));
+    setAcct(a);
+  }
+
+  function refreshAll(){
+    var cur=acctRef.current;
+    if(!cur||!LIVE_API){return;}
+    var keys=Object.keys(cur.hold).slice(0,25);
+    if(!keys.length){return;}
+    setRefBusy(true);
+    Promise.all(keys.map(function(k){return demoQuote(k);})).then(function(rs){
+      var a=JSON.parse(JSON.stringify(acctRef.current));
+      var fail=0;
+      rs.forEach(function(q,i){
+        var x=a.hold[keys[i]];
+        if(!x){return;}
+        if(q.ok){x.px=q.price;x.asOf=q.asOf;}else{fail++;}
+      });
+      commit(a);
+      setRefBusy(false);setRefAt(Date.now());setRefFail(fail);
+    });
+  }
+  useEffect(function(){
+    if(acct&&LIVE_API&&Object.keys(acct.hold).length){refreshAll();}
+  },[]);
+
+  function lookup(sym,wantSide){
+    var t=String(sym||'').trim();
+    if(!t){return;}
+    var my=++seq.current;
+    setLookBusy(t.toUpperCase());setLookErr(null);setMsg(null);
+    demoLookup(t).then(function(r){
+      if(my!==seq.current){return;}
+      setLookBusy(null);
+      if(!r.ok){setLook(null);setLookErr(r.msg);return;}
+      setLook(r);setQty('');
+      if(wantSide){setSide(wantSide);}
+      var a=acctRef.current;
+      if(a&&a.hold[r.tk]){
+        /* keep the position's price fresh while we are here */
+        var b=JSON.parse(JSON.stringify(a));
+        b.hold[r.tk].px=r.price;b.hold[r.tk].asOf=r.asOf;
+        commit(b);
+      }
+      try{if(tradeRef.current){tradeRef.current.scrollIntoView({behavior:'smooth',block:'start'});}}catch(e){}
+    });
+  }
+
+  function openAccount(){
+    var a=demoNew(startSel);
+    setSaved(demoSave(a));
+    setAcct(a);setLook(null);setMsg(null);setLookErr(null);
+  }
+  function resetAccount(){
+    demoClear();
+    setAcct(null);setLook(null);setMsg(null);setLookErr(null);setAskReset(false);setQty('');
+  }
+
+  /* what the current order would do */
+  function plan(){
+    if(!look||!acct){return null;}
+    var n=parseFloat(String(qty).replace(',','.'));
+    if(!(n>0)){return {empty:true};}
+    var px=look.price,held=acct.hold[look.tk];
+    var sh=mode==='usd'?Math.floor(n/px*10000)/10000:r4(n);
+    if(side==='sell'&&held&&sh>held.sh&&sh-held.sh<0.001){sh=held.sh;}
+    if(!(sh>0)){return {err:'הסכום קטן מכדי לקנות אפילו חלק ממניה.'};}
+    var total=r2(sh*px);
+    if(side==='buy'){
+      if(total>acct.cash+0.004){return {err:'אין מספיק מזומן. היתרה היא '+usd(acct.cash)+'.',sh:sh,total:total};}
+    }else{
+      if(!held){return {err:'אין לכם מניות של החברה הזו.'};}
+      if(sh>held.sh+0.00001){return {err:'יש לכם רק '+shFmt(held.sh)+' מניות של החברה הזו.',sh:sh,total:total};}
+      if(sh>=held.sh-0.00005){sh=held.sh;total=r2(sh*px);}
+    }
+    return {sh:sh,total:total};
+  }
+
+  function runOrder(){
+    var c=plan();
+    if(!c||c.empty||c.err||!look){return;}
+    if(LIVE_API&&Date.now()-look.at>120000){
+      var my=++seq.current;
+      setLookBusy(look.tk);
+      demoLookup(look.tk).then(function(r){
+        if(my!==seq.current){return;}
+        setLookBusy(null);
+        if(!r.ok){setMsg({tone:'bad',t:r.msg});return;}
+        setLook(r);
+        setMsg({tone:'info',t:'המחיר התעדכן ל-'+usd(r.price)+'. בדקו את ההזמנה ולחצו שוב לאישור.'});
+      });
+      return;
+    }
+    var a=JSON.parse(JSON.stringify(acct));
+    var tk=look.tk,pos=a.hold[tk],entry;
+    if(side==='buy'){
+      a.cash=r2(a.cash-c.total);
+      if(pos){pos.sh=r4(pos.sh+c.sh);pos.cost=r2(pos.cost+c.total);pos.px=look.price;pos.asOf=look.asOf;}
+      else{a.hold[tk]={n:look.n||tk,sh:c.sh,cost:c.total,px:look.price,asOf:look.asOf};}
+      entry={t:Date.now(),side:'buy',tk:tk,n:look.n||tk,sh:c.sh,px:look.price,total:c.total};
+      setMsg({tone:'good',t:'בוצעה קנייה: '+shFmt(c.sh)+' מניות '+tk+' ב-'+usd(look.price)+' למניה, בסך '+usd(c.total)+'.'});
+    }else{
+      var costPart=c.sh>=pos.sh?pos.cost:r2(pos.cost/pos.sh*c.sh);
+      var pl=r2(c.total-costPart);
+      a.cash=r2(a.cash+c.total);
+      pos.sh=r4(pos.sh-c.sh);pos.cost=r2(pos.cost-costPart);pos.px=look.price;pos.asOf=look.asOf;
+      if(pos.sh<=0.00005){delete a.hold[tk];}
+      entry={t:Date.now(),side:'sell',tk:tk,n:look.n||tk,sh:c.sh,px:look.price,total:c.total,pl:pl};
+      setMsg({tone:pl>=0?'good':'bad',t:'בוצעה מכירה: '+shFmt(c.sh)+' מניות '+tk+' ב-'+usd(look.price)+' למניה, בסך '+usd(c.total)+'. '+(pl>=0?'רווח':'הפסד')+' ממומש: '+susd(pl)+'.'});
+    }
+    a.log.unshift(entry);
+    if(a.log.length>200){a.log.length=200;}
+    commit(a);
+    setQty('');
+  }
+
+  function fillMax(){
+    if(!look||!acct){return;}
+    if(side==='buy'){
+      setQty(mode==='usd'?String(Math.floor(acct.cash*100)/100):String(Math.floor(acct.cash/look.price*10000)/10000));
+    }else{
+      var held=acct.hold[look.tk];
+      if(!held){return;}
+      setMode('sh');setQty(String(held.sh));
+    }
+  }
+
+  /* ---- no account yet ---- */
+  if(!acct){
+    return html`<div className="page"><div className="in">
+      <div className="crumbs"><button type="button" onClick=${function(){p.go({v:'home'});}}>דף הבית</button><span>חשבון דמו</span></div>
+      <span className="eyebrow">תרגול בלי סיכון</span>
+      <h1>חשבון דמו: משקיעים בכסף וירטואלי</h1>
+      <p className="lede">מקבלים סכום וירטואלי, קונים ומוכרים מניות אמיתיות במחיר השוק, ורואים כמה הרווחתם או הפסדתם. אין כאן כסף אמיתי ואין סיכון, וזו הדרך הטובה ביותר לתרגל את מה שלמדתם לפני שמשקיעים באמת.</p>
+      <div className="dm-start">
+        <span className="lbl" style=${{marginTop:0}}>בכמה כסף וירטואלי מתחילים?</span>
+        <${Seg} label="סכום פתיחה" value=${startSel} set=${setStartSel} options=${DEMO_STARTS} />
+        <div className="cta-row" style=${{marginTop:18}}>
+          <button type="button" className="btn" onClick=${openAccount}>פתיחת חשבון דמו</button>
+        </div>
+      </div>
+      <div className="callout info" role="note" style=${{marginTop:24,maxWidth:860}}><b>איך זה עובד</b> ${LIVE_API?'המחיר של כל מניה נמשך משירות מחירים חיצוני ברגע שמחפשים אותה, וקונים ומוכרים במחיר הזה. אפשר לסחור בכל חברה אמריקאית.':'בתצוגה המקדימה זמינות תשע חברות הדוגמה, במחיר הסגירה האחרון שאספנו. באתר המלא אפשר לסחור בכל חברה אמריקאית במחיר חי.'} החשבון נשמר בדפדפן במכשיר הזה בלבד. בלי עמלות, בלי מיסים ובלי פער בין מחיר קנייה למחיר מכירה, ולכן התוצאות טובות יותר מהמציאות.</div>
+    </div></div>`;
+  }
+
+  /* ---- account ---- */
+  var st=demoStats(acct);
+  var keys=Object.keys(acct.hold).sort(function(x,y){
+    var a=acct.hold[x],b=acct.hold[y];
+    return b.sh*(b.px||0)-a.sh*(a.px||0);
+  });
+  var cp=plan();
+  var heldNow=look?acct.hold[look.tk]:null;
+  var tone=Math.abs(st.pl)<0.005?'':(st.pl>0?'good':'bad');
+  var snaps=acct.snap;
+  var xs=snaps.map(function(_,i){return i;});
+  var vals=snaps.map(function(x){return x.v;});
+  var lo=Math.min.apply(null,vals.concat([acct.start])),hi=Math.max.apply(null,vals.concat([acct.start]));
+  var pad=Math.max((hi-lo)*0.15,acct.start*0.01);
+  var tight=(hi-lo)+2*pad<6000;
+
+  return html`<div className="page"><div className="in">
+    <div className="crumbs"><button type="button" onClick=${function(){p.go({v:'home'});}}>דף הבית</button><span>חשבון דמו</span></div>
+    <span className="eyebrow">כסף וירטואלי, מחירים אמיתיים</span>
+    <h1>חשבון דמו</h1>
+
+    <div className="stats dm-stats">
+      <${Stat} big=${true} label="שווי החשבון" value=${usd(st.total)} sub=${'התחלתם עם '+usd(acct.start,0)} />
+      <${Stat} tone=${tone} label="רווח או הפסד כולל" value=${susd(st.pl)} sub=${spct(st.plPct,2)+' מסכום הפתיחה'} />
+      <${Stat} label="מזומן פנוי" value=${usd(acct.cash)} />
+      <${Stat} label="שווי המניות" value=${usd(st.val)} sub=${keys.length?keys.length+' אחזקות':'אין אחזקות'} />
+    </div>
+    ${!saved?html`<div className="callout bad" role="alert"><b>החשבון לא נשמר.</b> הדפדפן חוסם שמירה במכשיר, ולכן החשבון יימחק כשתסגרו את הדף.</div>`:null}
+
+    ${snaps.length>=2?html`<div className="dm-chart">
+      <h3 className="dm-h">שווי החשבון לאורך זמן</h3>
+      <${LineChart} xs=${xs} yMin=${Math.max(0,lo-pad)} yMax=${hi+pad} fmtY=${tight?function(v){return nf0.format(Math.round(v));}:compactNum} left=${tight?58:null} fmtX=${function(i){return dShort(snaps[Math.round(i)]?snaps[Math.round(i)].t:Date.now());}} aria="גרף שווי החשבון"
+        lines=${[{values:vals,color:'var(--brand)',width:3,area:true},{values:vals.map(function(){return acct.start;}),color:'var(--muted)',dash:'5 4',width:2}]}
+        readout=${function(i){var s=snaps[i];return [{label:'תאריך',value:dStamp(s.t)},{label:'שווי',value:usd(s.v),color:'var(--brand)'},{label:'לעומת הפתיחה',value:susd(s.v-acct.start)}];}} />
+      <div className="legend"><span><i></i>שווי החשבון</span><span><i className="dash"></i>סכום הפתיחה</span><span>נקודה חדשה נוספת בכל פעולה וכשמרעננים מחירים</span></div>
+    </div>`:null}
+
+    <section className="dm-trade" ref=${tradeRef} style=${{scrollMarginTop:80}}>
+      <h2 className="dm-h2">קנייה ומכירה</h2>
+      ${LIVE_API?html`<${LiveSearch} onPick=${function(sym){lookup(sym);}} busy=${!!lookBusy} />`:null}
+      <span className="lbl">${LIVE_API?'או בחרו אחת מחברות הדוגמה':'בחרו חברה'}</span>
+      <div className="dm-chips" role="group" aria-label="חברות לדוגמה">
+        ${REAL_COS.map(function(c){
+          return html`<button key=${c.id} type="button" className=${'dm-chip'+(look&&look.tk===c.tk?' on':'')} disabled=${!!lookBusy} onClick=${function(){lookup(c.tk);}}><b dir="ltr">${c.tk}</b><span>${c.n}</span></button>`;
+        })}
+      </div>
+      ${lookBusy?html`<div className="callout info" role="status" aria-live="polite"><b>מביאים מחיר ל-${html`<bdi dir="ltr">${lookBusy}</bdi>`}.</b></div>`:null}
+      ${lookErr?html`<div className="callout bad" role="alert"><b>לא הצלחנו.</b> ${lookErr}</div>`:null}
+
+      ${look?html`<div className="dm-order">
+        <div className="dm-co">
+          <div><b className="dm-name" dir="auto">${look.n}</b><span className="tkr" dir="ltr">${look.tk}</span></div>
+          <div className="dm-px"><strong>${usd(look.price)}</strong><small>${look.asOf?'נכון ל-'+look.asOf:''}${look.src&&LIVE_API?' · '+look.src:''}</small></div>
+        </div>
+        ${heldNow?html`<p className="note" style=${{margin:'6px 0 0'}}>יש לכם ${shFmt(heldNow.sh)} מניות, בעלות ממוצעת של ${usd(heldNow.cost/heldNow.sh)} למניה.</p>`:null}
+        <div className="rowseg" style=${{marginTop:14}}>
+          <${Seg} label="סוג פעולה" value=${side} set=${function(v){setSide(v);setMsg(null);setQty('');}} options=${[['buy','קנייה'],['sell','מכירה']]} />
+          <${Seg} label="איך מזינים כמות" value=${mode} set=${function(v){setMode(v);setQty('');}} options=${[['usd','לפי סכום ב-$'],['sh','לפי מספר מניות']]} />
+        </div>
+        <label htmlFor="dm-q" className="lbl">${mode==='usd'?'סכום ב-דולרים':'מספר מניות'}</label>
+        <div className="ls-row">
+          <input id="dm-q" type="text" inputMode="decimal" autoComplete="off" dir="ltr" placeholder=${mode==='usd'?'למשל 1000':'למשל 10'} value=${qty} onChange=${function(e){setQty(e.target.value);setMsg(null);}} />
+          <button type="button" className="btn ghost" onClick=${fillMax}>${side==='buy'?'כל המזומן':'מכירת הכול'}</button>
+        </div>
+        ${cp&&!cp.empty?html`<div className=${'dm-sum'+(cp.err?' bad':'')} role="status" aria-live="polite">
+          ${cp.err?html`<b>${cp.err}</b>`:html`<span>${side==='buy'?'תקנו':'תמכרו'} <b>${shFmt(cp.sh)}</b> מניות ב-<b>${usd(look.price)}</b> למניה: <b>${usd(cp.total)}</b>. ${side==='buy'?'המזומן שיישאר: ':'המזומן אחרי המכירה: '}<b>${usd(side==='buy'?acct.cash-cp.total:acct.cash+cp.total)}</b>.</span>`}
+        </div>`:null}
+        <div className="actions" style=${{marginTop:12}}>
+          <button type="button" className=${'btn'+(side==='sell'?' sell':'')} disabled=${!cp||!!cp.empty||!!cp.err||!!lookBusy} onClick=${runOrder}>${side==='buy'?'אישור קנייה':'אישור מכירה'}</button>
+          ${LIVE_API||realById(look.tk)?html`<button type="button" className="btn ghost" onClick=${function(){p.go({v:'stock',id:look.tk});}}>בדיקה לפי גרהם</button>`:null}
+        </div>
+      </div>`:null}
+      ${msg?html`<div className=${'callout '+msg.tone} role="status" aria-live="polite" style=${{marginTop:14}}>${msg.t}</div>`:null}
+    </section>
+
+    <section className="dm-pos">
+      <div className="dm-posh">
+        <h2 className="dm-h2" style=${{margin:0}}>האחזקות שלכם</h2>
+        ${LIVE_API&&keys.length?html`<button type="button" className="btn ghost sm" disabled=${refBusy} onClick=${refreshAll}>${refBusy?'מרעננים...':'רענון מחירים'}</button>`:null}
+      </div>
+      ${refAt?html`<p className="note" style=${{margin:'6px 0 0'}}>${refFail?'לא כל המחירים התעדכנו ('+refFail+' נכשלו). ':''}עודכן ב-${dStamp(refAt).split(' ')[1]}.</p>`:null}
+      ${keys.length?html`<div className="dm-list">${keys.map(function(k){
+        var x=acct.hold[k];
+        var px=x.px>0?x.px:x.cost/x.sh;
+        var val=x.sh*px,pl=val-x.cost,pp=x.cost>0?pl/x.cost*100:0;
+        var tn=Math.abs(pl)<0.005?'':(pl>0?'good':'bad');
+        return html`<article key=${k} className="dm-pos-card">
+          <div className="dm-pc-top">
+            <div><b dir="auto">${x.n}</b><span className="tkr" dir="ltr">${k}</span></div>
+            <strong className=${'dm-pl '+tn}>${susd(pl)} <small>${spct(pp,1)}</small></strong>
+          </div>
+          <dl className="dm-grid">
+            <div><dt>כמות</dt><dd>${shFmt(x.sh)}</dd></div>
+            <div><dt>עלות ממוצעת</dt><dd>${usd(x.cost/x.sh)}</dd></div>
+            <div><dt>מחיר נוכחי</dt><dd>${usd(px)}</dd></div>
+            <div><dt>שווי</dt><dd>${usd(val)}</dd></div>
+          </dl>
+          <div className="actions">
+            <button type="button" className="btn sm" onClick=${function(){lookup(k,'buy');}}>קנייה נוספת</button>
+            <button type="button" className="btn ghost sm" onClick=${function(){lookup(k,'sell');}}>מכירה</button>
+            ${LIVE_API||realById(k)?html`<button type="button" className="btn ghost sm" onClick=${function(){p.go({v:'stock',id:k});}}>בדיקת גרהם</button>`:null}
+          </div>
+        </article>`;
+      })}</div>`:html`<p className="note" style=${{marginTop:10}}>עדיין אין אחזקות. בחרו חברה למעלה וקנו את המניה הראשונה.</p>`}
+      ${st.realized!==0?html`<p className="note" style=${{marginTop:12}}>רווח או הפסד ממומש ממכירות עד היום: <b>${susd(st.realized)}</b>. רווח או הפסד על הנייר באחזקות הנוכחיות: <b>${susd(st.unreal)}</b>.</p>`:null}
+    </section>
+
+    ${acct.log.length?html`<details className="adv dm-log"><summary>היסטוריית פעולות (${acct.log.length})</summary>
+      <div className="tblwrap"><table className="tbl">
+        <thead><tr><th>תאריך</th><th>פעולה</th><th>מניה</th><th>כמות</th><th>מחיר</th><th>סכום</th><th>רווח ממומש</th></tr></thead>
+        <tbody>${acct.log.slice(0,60).map(function(l,i){
+          return html`<tr key=${i}><td>${dStamp(l.t)}</td><td>${l.side==='buy'?'קנייה':'מכירה'}</td><td dir="ltr">${l.tk}</td><td>${shFmt(l.sh)}</td><td>${usd(l.px)}</td><td>${usd(l.total)}</td><td>${typeof l.pl==='number'?susd(l.pl):'—'}</td></tr>`;
+        })}</tbody>
+      </table></div>
+    </details>`:null}
+
+    <div className="callout info" role="note" style=${{marginTop:26,maxWidth:860}}><b>מה לומדים מהחשבון הזה</b> גרהם הזהיר שהשוק מתנודד בין התלהבות לפחד, ושמחיר מניה ביום או בשבוע אומר מעט על שווי החברה. לכן שימו לב אם הרווח או ההפסד שלכם מגיע מהשוק ביום אחד, או מחברה חזקה שקניתם במחיר סביר. לפני כל קנייה נסו לרוץ על ${LIVE_API?'בדיקת גרהם':'הבדיקה האוטומטית'} של החברה, ובדקו אחרי כמה חודשים אם היא עזרה.</div>
+    <div className="callout info" role="note" style=${{marginTop:14,maxWidth:860}}><b>הסתייגות</b> זו הדמיה לימודית בכסף וירטואלי. אין בה עמלות, מיסים או פער בין קנייה למכירה, והמחירים עלולים להיות מעוכבים או שגויים. הצלחה בדמו אינה מבטיחה הצלחה בכסף אמיתי, ואינה המלצה לקנות או למכור.</div>
+
+    <div className="dm-reset">
+      ${askReset?html`<div className="callout bad" role="alert"><b>למחוק את החשבון ולהתחיל מחדש?</b> כל האחזקות וההיסטוריה יימחקו. אי אפשר לשחזר.
+        <div className="actions" style=${{marginTop:10}}>
+          <button type="button" className="btn sell" onClick=${resetAccount}>כן, למחוק ולהתחיל מחדש</button>
+          <button type="button" className="btn ghost" onClick=${function(){setAskReset(false);}}>ביטול</button>
+        </div></div>`
+        :html`<button type="button" className="btn ghost sm" onClick=${function(){setAskReset(true);}}>איפוס החשבון והתחלה מחדש</button>`}
+    </div>
+  </div></div>`;
+}
+
 /* ===== views.js ===== */
 /* ---------- registry ---------- */
 var TOOLS={
@@ -4026,6 +4458,7 @@ function Home(p){
           <div className="cta-row">
             <button type="button" className="btn" onClick=${function(){p.go({v:'stock'});}}>בדקו מניה אמיתית</button>
             <button type="button" className="btn ghost" onClick=${function(){p.go({v:'find'});}}>לעשרת הצעדים</button>
+            <button type="button" className="btn ghost" onClick=${function(){p.go({v:'demo'});}}>חשבון דמו</button>
           </div>
         </div>
         <${HeroCheck} go=${p.go} />
@@ -4054,6 +4487,17 @@ function Home(p){
       <div className="cta-row" style=${{marginTop:22}}>
         <button type="button" className="btn" onClick=${function(){p.go({v:'stock'});}}>${LIVE_API?'לחיפוש חברה':'לבדיקה המלאה'}</button>
         <button type="button" className="btn ghost" onClick=${function(){p.go({v:'check',pre:'x'});}}>להזין חברה משלי</button>
+      </div>
+    </div></section>
+
+    <section className="sec"><div className="in">
+      <div className="dm-promo">
+        <div>
+          <span className="eyebrow">תרגול בלי סיכון</span>
+          <h2 className="t" style=${{marginBottom:8}}>חשבון דמו: משקיעים בכסף וירטואלי</h2>
+          <p className="lede" style=${{marginBottom:0}}>מקבלים סכום וירטואלי, קונים ומוכרים מניות אמיתיות במחיר השוק, ורואים כמה הרווחתם או הפסדתם.</p>
+        </div>
+        <button type="button" className="btn" onClick=${function(){p.go({v:'demo'});}}>לחשבון הדמו</button>
       </div>
     </div></section>
 
@@ -4203,7 +4647,7 @@ function SimView(p){
 
 /* ---------- shell ---------- */
 function Header(p){
-  var nav=[['find','איך מוצאים מניה טובה','מניה טובה'],['stock','בדיקת מניה אמיתית','מניה אמיתית'],['course','הקורס'],['sims','סימולטורים וכלים','כלים'],['exam','מבחן סיום','מבחן']];
+  var nav=[['find','איך מוצאים מניה טובה','מניה טובה'],['stock','בדיקת מניה אמיתית','מניה אמיתית'],['demo','חשבון דמו','דמו'],['course','הקורס'],['sims','סימולטורים וכלים','כלים'],['exam','מבחן סיום','מבחן']];
   var cur=p.view.v==='lesson'?'course':p.view.v==='sim'?'sims':p.view.v==='check'?'find':p.view.v==='numbers'?'find':p.view.v;
   return html`<header className="top"><div className="in">
     <button type="button" className="brand" onClick=${function(){p.go({v:'home'});}}><${Logo} /><span>מסלול ההון</span></button>
@@ -4228,7 +4672,7 @@ function SiteFooter(){
 
 function parseView(tok){
   if(!tok||tok==='home'){return {v:'home'};}
-  if(tok==='course'||tok==='sims'||tok==='exam'||tok==='numbers'||tok==='find'||tok==='check'||tok==='stock'){return {v:tok};}
+  if(tok==='course'||tok==='sims'||tok==='exam'||tok==='numbers'||tok==='find'||tok==='check'||tok==='stock'||tok==='demo'){return {v:tok};}
   if(tok.indexOf('stock-')===0){
     var rid=tok.slice(6).toUpperCase();
     if(realById(rid)||(LIVE_API&&/^[A-Z0-9-]{1,10}$/.test(rid))){return {v:'stock',id:rid};}
@@ -4306,6 +4750,8 @@ function App(){
     body=html`<${Wizard} key=${'w'+(view.at||0)+(view.pre||'')} at=${view.at} pre=${view.pre} price=${view.price} go=${go} />`;
   }else if(view.v==='stock'){
     body=html`<${StockCheck} key=${'s'+(view.id||'')} id=${view.id} go=${go} />`;
+  }else if(view.v==='demo'){
+    body=html`<${Demo} go=${go} />`;
   }else if(view.v==='numbers'){
     body=html`<${NumbersView} go=${go} />`;
   }else if(view.v==='sims'){
